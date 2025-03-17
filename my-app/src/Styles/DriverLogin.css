@@ -1,0 +1,224 @@
+/* Common styles for both Driver and Client login pages */
+.DriverLogin-Container,
+.ClientLogin-Container {
+  display: flex;
+  height: calc(100vh - 80px); /* Adjust based on header height */
+  background-color: #f5f7fa;
+}
+
+.DriverLogin-Left,
+.ClientLogin-Left {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 2rem;
+}
+
+.DriverLogin-Left-Content,
+.ClientLogin-Left-Content {
+  max-width: 400px;
+  width: 100%;
+  text-align: center;
+}
+
+.DriverLogin-Left-Content h2,
+.ClientLogin-Left-Content h2 {
+  font-size: 2.5rem;
+  margin-bottom: 1rem;
+  color: #333;
+}
+
+.DriverLogin-Left-Content p,
+.ClientLogin-Left-Content p {
+  font-size: 1.1rem;
+  color: #666;
+  margin-bottom: 2rem;
+}
+
+.DriverLogin-Button,
+.ClientLogin-Button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background-color: #f6851b;
+  color: white;
+  border: none;
+  padding: 12px 20px;
+  border-radius: 5px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.3s;
+  width: 100%;
+  margin-bottom: 1rem;
+}
+
+.DriverLogin-Button:hover,
+.ClientLogin-Button:hover {
+  background-color: #e67e22;
+}
+
+.DriverLogin-Button:disabled,
+.ClientLogin-Button:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+.MetaMask-Logo {
+  width: 24px;
+  height: 24px;
+}
+
+.DriverLogin-Right,
+.ClientLogin-Right {
+  flex: 1;
+  overflow: hidden;
+}
+
+.DriverLogin-Image,
+.ClientLogin-Image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.error-message {
+  color: #d32f2f;
+  margin-top: 1rem;
+  font-size: 0.9rem;
+}
+
+.registration-link {
+  margin-top: 2rem;
+  font-size: 0.9rem;
+  color: #666;
+}
+
+.registration-link a {
+  color: #f6851b;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.registration-link a:hover {
+  text-decoration: underline;
+}
+
+/* Media queries for responsiveness */
+@media (max-width: 992px) {
+  .DriverLogin-Container,
+  .ClientLogin-Container {
+    flex-direction: column;
+  }
+
+  .DriverLogin-Left,
+  .ClientLogin-Left {
+    order: 2;
+    padding: 2rem 1rem;
+  }
+
+  .DriverLogin-Right,
+  .ClientLogin-Right {
+    order: 1;
+    height: 200px;
+  }
+}
+
+/* Legacy styles - keep for backward compatibility */
+.Login-Main-Container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  height: 100vh;
+}
+
+.Inner-Container-Login {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+
+.Left-Container {
+  background-color: rgb(18, 17, 22);
+  height: 100vh;
+}
+
+.Right-Container {
+  background-color: rgb(18, 17, 22);
+  height: 100vh;
+  display: grid;
+  justify-content: center;
+  align-items: center;
+}
+
+.Meta-Logo {
+  width: 100px;
+  height: 100px;
+}
+
+.DriverText {
+  color: white;
+  font-size: 20px;
+}
+
+.Login-Button-Client {
+  background-color: rgb(232, 248, 3);
+  color: black;
+  border: none;
+  width: 10rem;
+  height: 2rem;
+  font-size: 18px;
+  cursor: pointer;
+}
+
+.Drivers-Logo {
+  width: 100%;
+  height: 100vh;
+}
+
+@property --gradient-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+
+:root {
+  --gradient-angle: 0deg;
+  --clr-1: #052b2f;
+  --clr-3: #0e4b50;
+  --clr-4: #2d8f85;
+  --clr-5: #204e74;
+}
+
+.Login-Button-Client::after {
+  content: "";
+
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 300%;
+  height: 300%;
+  background: conic-gradient(
+    from var(--gradient-angle),
+    var(--clr-3),
+    var(--clr-4),
+    var(--clr-5),
+    var(--clr-4),
+    var(--clr-3)
+  );
+  font-size: 15px;
+  border-radius: 50%;
+  transform: translate(-50%, -50%) rotate(0deg);
+  animation: rotation 20s linear infinite;
+  z-index: -1;
+  pointer-events: none;
+}
+
+@keyframes rotation {
+  0% {
+    --gradient-angle: 0deg;
+  }
+  100% {
+    --gradient-angle: 360deg;
+  }
+}

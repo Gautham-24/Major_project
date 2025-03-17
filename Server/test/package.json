@@ -1,0 +1,15 @@
+{
+  "name": "chainride-tests",
+  "version": "1.0.0",
+  "description": "Tests for ChainRide application",
+  "main": "ride_api_test.js",
+  "scripts": {
+    "test:api": "node ride_api_test.js",
+    "test:contract": "node ../SmartContract/test/ride_posting_test.js"
+  },
+  "dependencies": {
+    "axios": "^1.6.0",
+    "web3": "^1.10.0",
+    "dotenv": "^16.3.1"
+  }
+}

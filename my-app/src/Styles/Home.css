@@ -1,0 +1,275 @@
+.HomeMainComponent {
+  background-color: rgb(18, 17, 22);
+}
+.HomeCar-Image {
+  width: 700px;
+  height: 450px;
+}
+.HomeInnerComponent {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+
+.Home-RideButton {
+  background-color: rgb(232, 248, 3);
+  color: black;
+  border: none;
+  width: 7rem;
+  height: 1.7rem;
+  font-size: 18px;
+  text-decoration: none;
+  display: inline-block;
+}
+
+.Home-Intro {
+  margin-top: 9rem;
+  color: white;
+  font-size: 20px;
+}
+
+.Home-SpamText {
+  font-weight: 200;
+}
+
+.HomeImage {
+  margin-top: 2rem;
+}
+
+.HomePage-Logo {
+  width: 550px;
+  margin-right: 1rem;
+  height: 450px;
+}
+
+.Home-Symbol {
+  display: grid;
+  justify-content: center;
+  color: white;
+}
+
+.Down-Arrow-1 {
+  margin-top: 2rem;
+  width: 25px;
+  height: 25px;
+  animation-name: colorChange;
+  animation-duration: 2s;
+  animation-iteration-count: infinite;
+  animation-direction: alternate;
+  animation-timing-function: linear;
+}
+
+.Down-Arrow-2 {
+  margin-top: -13px;
+  width: 25px;
+  height: 25px;
+  animation-name: colorChange;
+  animation-duration: 2s;
+  animation-iteration-count: infinite;
+  animation-direction: alternate;
+  animation-timing-function: linear;
+}
+
+@keyframes colorChange {
+  0% {
+    color: white;
+  }
+
+  100% {
+    color: #00ddeb;
+  }
+}
+.Part2MainContainer {
+  margin-top: 2rem;
+  background: rgb(18, 17, 22);
+  color: white;
+  height: 26rem;
+}
+
+.Globe-Container {
+  background: rgb(18, 17, 22);
+}
+.Part2-Para-Container {
+  display: grid;
+  justify-content: center;
+  color: white;
+  background: rgb(18, 17, 22);
+}
+.Part2-Para {
+  margin-left: 10rem;
+  margin-right: 10rem;
+}
+
+.Globe-Container {
+  margin-top: -8rem;
+}
+
+.Part3ServicesContainer {
+  margin-top: 6rem;
+  color: white;
+}
+.ServicesContainer {
+  margin-top: 1rem;
+  display: flex;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 15rem;
+  color: white;
+  justify-content: center;
+}
+.Car-Serivce {
+  margin-top: 1rem;
+  display: grid;
+  grid-column: 1fr 1fr;
+  justify-content: center;
+}
+.Car-Serivce-img {
+  width: 100px;
+  height: 100px;
+}
+.Car-Serivce-text {
+  margin-top: -1rem;
+}
+.Car-Serivce-img:hover {
+  transform: scale(1.2);
+}
+
+.Part4ContactContainer {
+  height: 3rem;
+}
+
+/* Add these new styles for the updated home page layout */
+.Home-Content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 2rem;
+  color: white;
+}
+
+.Home-Content-Left {
+  flex: 1;
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.Home-Content-Left h1 {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+  color: rgb(232, 248, 3);
+}
+
+.Home-Content-Left p {
+  font-size: 1.2rem;
+  line-height: 1.6;
+  margin-bottom: 2rem;
+}
+
+.Home-Content-Right {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.home-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.driver-section,
+.client-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.driver-section h3,
+.client-section h3 {
+  font-size: 1.3rem;
+  margin-bottom: 0.5rem;
+  color: rgb(232, 248, 3);
+}
+
+.button-group {
+  display: flex;
+  gap: 1rem;
+}
+
+.Home-Button {
+  background-color: rgb(232, 248, 3);
+  color: black;
+  border: none;
+  padding: 0.8rem 1.5rem;
+  font-size: 1rem;
+  text-decoration: none;
+  border-radius: 4px;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  display: inline-block;
+}
+
+.Home-Button:hover {
+  background-color: rgb(255, 255, 255);
+  transform: translateY(-2px);
+}
+
+.register-button {
+  background-color: transparent;
+  border: 2px solid rgb(232, 248, 3);
+  color: rgb(232, 248, 3);
+}
+
+.register-button:hover {
+  background-color: rgba(232, 248, 3, 0.1);
+  color: rgb(232, 248, 3);
+}
+
+/* Media queries for responsiveness */
+@media (max-width: 1200px) {
+  .HomeCar-Image {
+    width: 500px;
+    height: auto;
+  }
+}
+
+@media (max-width: 992px) {
+  .Home-Content {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .Home-Content-Left {
+    order: 2;
+  }
+
+  .Home-Content-Right {
+    order: 1;
+    margin-bottom: 2rem;
+  }
+
+  .HomeCar-Image {
+    width: 400px;
+  }
+
+  .button-group {
+    justify-content: center;
+  }
+}
+
+@media (max-width: 576px) {
+  .HomeCar-Image {
+    width: 300px;
+  }
+
+  .button-group {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .Home-Button {
+    width: 100%;
+    text-align: center;
+  }
+}

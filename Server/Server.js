@@ -1,0 +1,1226 @@
+const express = require("express");
+const cookieParser = require("cookie-parser");
+const cors = require("cors");
+const path = require("path");
+const loginRoute = require("./routes/login");
+const verifiedRoute = require("./routes/Verified");
+const cookieJwtAuth = require("./src/middleware/cookieJwtAuth");
+let blockchainService;
+try {
+  delete require.cache[require.resolve("./BlockchainService")];
+  blockchainService = require("./BlockchainService");
+  console.log("BlockchainService loaded successfully");
+
+  if (!blockchainService.getClientIdByAccount) {
+    console.error("ERROR: getClientIdByAccount method is missing!");
+  }
+
+  if (!blockchainService.getClient) {
+    console.error("ERROR: getClient method is missing!");
+  }
+
+  if (!blockchainService.registerClient) {
+    console.error("ERROR: registerClient method is missing!");
+  }
+} catch (error) {
+  console.error("Error loading BlockchainService:", error);
+}
+
+const app = express();
+const Port = 8080;
+
+// Counter variables for fallback ID generation
+let driverIdCounter = 1;
+let clientIdCounter = 1;
+
+// Middleware
+app.use(express.json());
+app.use(cookieParser());
+app.use(
+  cors({
+    origin: ["http://localhost:3000", "http://localhost:3001"],
+    credentials: true,
+  })
+);
+
+// Routes
+app.use("/api/login", loginRoute);
+app.use("/api/verified", verifiedRoute);
+
+// Health check endpoint
+app.get("/health", (req, res) => {
+  res.status(200).json({
+    status: "ok",
+    blockchain: blockchainService.isInitialized ? "connected" : "disconnected",
+  });
+});
+
+// API endpoints with better error handling
+// Driver endpoints
+app.post("/api/driver-register", async (req, res) => {
+  try {
+    const {
+      metaAccount,
+      name,
+      email,
+      phone,
+      carModel,
+      licensePlate,
+      carColor,
+    } = req.body;
+
+    if (!metaAccount) {
+      return res.status(400).json({
+        success: false,
+        message: "metaAccount is required",
+      });
+    }
+
+    // Register driver on blockchain
+    const result = await blockchainService.registerDriver(
+      metaAccount,
+      name || "Driver",
+      email || "driver@example.com",
+      phone || "123-456-7890",
+      carModel || "Default Car",
+      licensePlate || "ABC123",
+      carColor || "Black"
+    );
+
+    if (result.success) {
+      res.status(201).json({ success: true, driverId: result.driverId });
+    } else {
+      res.status(400).json({ success: false, message: result.error });
+    }
+  } catch (error) {
+    console.error("Error registering driver:", error.message);
+    res.status(500).json({
+      success: false,
+      message: "Error registering driver",
+      error: error.message,
+    });
+  }
+});
+
+app.get("/api/drivers", async (req, res) => {
+  try {
+    // Get all drivers from blockchain
+    const result = await blockchainService.getAllDrivers();
+
+    if (result.success) {
+      res.status(200).json({ success: true, drivers: result.drivers });
+    } else {
+      res.status(400).json({ success: false, message: result.error });
+    }
+  } catch (error) {
+    console.error("Error getting drivers:", error.message);
+    res.status(500).json({
+      success: false,
+      message: "Error getting drivers",
+      error: error.message,
+    });
+  }
+});
+
+app.get("/api/driver/:driverId", async (req, res) => {
+  try {
+    const { driverId } = req.params;
+
+    // Get driver from blockchain
+    const driver = await blockchainService.getDriver(driverId);
+
+    if (driver) {
+      res.status(200).json({ success: true, driver });
+    } else {
+      res.status(404).json({ success: false, message: "Driver not found" });
+    }
+  } catch (error) {
+    console.error("Error getting driver:", error.message);
+    res.status(500).json({
+      success: false,
+      message: "Error getting driver",
+      error: error.message,
+    });
+  }
+});
+
+// Get driver by MetaMask account
+app.get("/api/driver-by-account/:metaAccount", async (req, res) => {
+  try {
+    const { metaAccount } = req.params;
+
+    if (!metaAccount) {
+      return res.status(400).json({
+        success: false,
+        message: "metaAccount is required",
+      });
+    }
+
+    // Get all drivers
+    const result = await blockchainService.getAllDrivers();
+
+    if (!result.success) {
+      return res.status(500).json({
+        success: false,
+        message: "Error getting drivers",
+        error: result.error,
+      });
+    }
+
+    // Find driver with matching wallet address
+    const driver = result.drivers.find(
+      (d) => d.walletAddress.toLowerCase() === metaAccount.toLowerCase()
+    );
+
+    if (driver) {
+      return res.status(200).json({
+        success: true,
+        driver,
+      });
+    }
+
+    // If no driver found
+    return res.status(404).json({
+      success: false,
+      message: "Driver not found for this MetaMask account",
+    });
+  } catch (error) {
+    console.error("Error in driver endpoint:", error.message);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: error.message,
+    });
+  }
+});
+
+// Client endpoints
+app.post("/api/client-register", async (req, res) => {
+  try {
+    const { metaAccount, name, email, phone } = req.body;
+
+    if (!metaAccount) {
+      return res.status(400).json({
+        success: false,
+        message: "metaAccount is required",
+      });
+    }
+
+    // Check if the client is already registered
+    if (typeof blockchainService.getClientIdByAccount !== "function") {
+      console.error("getClientIdByAccount method is not available!");
+      return res.status(500).json({
+        success: false,
+        message:
+          "Server configuration error: getClientIdByAccount method not available",
+      });
+    }
+
+    let existingClientId;
+    try {
+      existingClientId = await blockchainService.getClientIdByAccount(
+        metaAccount
+      );
+      console.log(
+        `Checking if client exists: ${existingClientId ? "Yes" : "No"}`
+      );
+    } catch (checkError) {
+      console.error("Error checking if client exists:", checkError);
+      // Continue with registration attempt even if check fails
+    }
+
+    if (existingClientId) {
+      console.log(`Client already registered with ID: ${existingClientId}`);
+      return res.status(200).json({
+        success: true,
+        clientId: existingClientId,
+        message: "Client already registered",
+      });
+    }
+
+    // Register client on blockchain
+    if (typeof blockchainService.registerClient !== "function") {
+      console.error("registerClient method is not available!");
+      return res.status(500).json({
+        success: false,
+        message:
+          "Server configuration error: registerClient method not available",
+      });
+    }
+
+    // Register client on blockchain
+    const result = await blockchainService.registerClient(
+      metaAccount,
+      name || "Client",
+      email || "client@example.com",
+      phone || "123-456-7890"
+    );
+
+    if (result.success) {
+      res.status(201).json({ success: true, clientId: result.clientId });
+    } else {
+      // Check if the error message indicates the client is already registered
+      if (result.error && result.error.includes("already registered")) {
+        // Try to get the client ID again
+        try {
+          const clientId = await blockchainService.getClientIdByAccount(
+            metaAccount
+          );
+          if (clientId) {
+            console.log(`Client was already registered with ID: ${clientId}`);
+            return res.status(200).json({
+              success: true,
+              clientId: clientId,
+              message: "Client already registered",
+            });
+          }
+        } catch (getIdError) {
+          console.error(
+            "Error getting client ID after failed registration:",
+            getIdError
+          );
+        }
+      }
+
+      res.status(400).json({ success: false, message: result.error });
+    }
+  } catch (error) {
+    // Check if the error message indicates the client is already registered
+    if (error.message && error.message.includes("already registered")) {
+      try {
+        const clientId = await blockchainService.getClientIdByAccount(
+          metaAccount
+        );
+        if (clientId) {
+          console.log(`Client was already registered with ID: ${clientId}`);
+          return res.status(200).json({
+            success: true,
+            clientId: clientId,
+            message: "Client already registered",
+          });
+        }
+      } catch (getIdError) {
+        console.error(
+          "Error getting client ID after registration error:",
+          getIdError
+        );
+      }
+    }
+
+    console.error("Error registering client:", error.message);
+    res.status(500).json({
+      success: false,
+      message: "Error registering client",
+      error: error.message,
+    });
+  }
+});
+
+app.get("/api/client/:clientId", async (req, res) => {
+  try {
+    const { clientId } = req.params;
+
+    // Get client from blockchain
+    const client = await blockchainService.getClient(clientId);
+
+    if (client) {
+      res.status(200).json({ success: true, client });
+    } else {
+      res.status(404).json({ success: false, message: "Client not found" });
+    }
+  } catch (error) {
+    console.error("Error getting client:", error.message);
+    res.status(500).json({
+      success: false,
+      message: "Error getting client",
+      error: error.message,
+    });
+  }
+});
+
+// Get client by MetaMask account
+app.get("/api/client-by-account/:account", async (req, res) => {
+  try {
+    const { account } = req.params;
+
+    if (!account) {
+      return res.status(400).json({
+        success: false,
+        message: "MetaMask account is required",
+      });
+    }
+
+    // Check if the getClientIdByAccount method exists
+    if (typeof blockchainService.getClientIdByAccount !== "function") {
+      console.error("getClientIdByAccount method is not available!");
+      return res.status(500).json({
+        success: false,
+        message:
+          "Server configuration error: getClientIdByAccount method not available",
+      });
+    }
+
+    // Get client ID by account
+    let clientId;
+    try {
+      clientId = await blockchainService.getClientIdByAccount(account);
+      console.log(`Client ID for account ${account}: ${clientId}`);
+    } catch (idError) {
+      console.error("Error in getClientIdByAccount:", idError);
+      return res.status(500).json({
+        success: false,
+        message: "Error getting client ID by account",
+        error: idError.message,
+      });
+    }
+
+    if (!clientId) {
+      return res.status(404).json({
+        success: false,
+        message: "Client not found for this MetaMask account",
+      });
+    }
+
+    // Check if the getClient method exists
+    if (typeof blockchainService.getClient !== "function") {
+      console.error("getClient method is not available!");
+      return res.status(500).json({
+        success: false,
+        message: "Server configuration error: getClient method not available",
+      });
+    }
+
+    // Get client details
+    let client;
+    try {
+      client = await blockchainService.getClient(clientId);
+      console.log(`Client details for ID ${clientId}:`, client);
+    } catch (clientError) {
+      console.error("Error in getClient:", clientError);
+      return res.status(500).json({
+        success: false,
+        message: "Error getting client details",
+        error: clientError.message,
+      });
+    }
+
+    if (!client) {
+      return res.status(404).json({
+        success: false,
+        message: "Client not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      client: {
+        ...client,
+        clientId,
+      },
+    });
+  } catch (error) {
+    console.error("Error getting client by account:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Error getting client by account",
+      error: error.message,
+    });
+  }
+});
+
+// Ride endpoints
+app.post("/api/rides", async (req, res) => {
+  try {
+    const {
+      driverMetaAccount,
+      startLocation,
+      destination,
+      availableSeats,
+      price,
+      departureTime,
+    } = req.body;
+
+    if (!driverMetaAccount || !startLocation || !destination || !price) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "driverMetaAccount, startLocation, destination, and price are required",
+      });
+    }
+
+    // Create ride on blockchain
+    const result = await blockchainService.createRide(
+      driverMetaAccount,
+      startLocation,
+      destination,
+      availableSeats || 1,
+      price,
+      departureTime || new Date().toISOString()
+    );
+
+    if (result.success) {
+      res.status(201).json({ success: true, rideId: result.rideId });
+    } else {
+      res.status(400).json({ success: false, message: result.error });
+    }
+  } catch (error) {
+    console.error("Error creating ride:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+app.get("/api/rides", async (req, res) => {
+  try {
+    // Get active rides from blockchain
+    const result = await blockchainService.getActiveRides();
+
+    if (result.success) {
+      res.status(200).json({ success: true, rides: result.rides });
+    } else {
+      res.status(400).json({ success: false, message: result.error });
+    }
+  } catch (error) {
+    console.error("Error fetching rides:", error.message);
+    res.status(500).json({
+      success: false,
+      message: "Error fetching rides",
+      error: error.message,
+    });
+  }
+});
+
+app.get("/api/rides/driver/:driverId", async (req, res) => {
+  try {
+    const { driverId } = req.params;
+
+    if (!driverId) {
+      return res.status(400).json({
+        success: false,
+        message: "driverId is required",
+      });
+    }
+
+    // Get driver rides from blockchain
+    const result = await blockchainService.getDriverRides(driverId);
+
+    if (result.success) {
+      res.status(200).json({ success: true, rides: result.rides });
+    } else {
+      res.status(400).json({ success: false, message: result.error });
+    }
+  } catch (error) {
+    console.error("Error fetching driver rides:", error.message);
+    res.status(500).json({
+      success: false,
+      message: "Error fetching driver rides",
+      error: error.message,
+    });
+  }
+});
+
+app.get("/api/rides/client/:clientId", async (req, res) => {
+  try {
+    const { clientId } = req.params;
+
+    if (!clientId) {
+      return res.status(400).json({
+        success: false,
+        message: "clientId is required",
+      });
+    }
+
+    // Get client rides from blockchain
+    const result = await blockchainService.getClientRides(clientId);
+
+    if (result.success) {
+      res.status(200).json({ success: true, rides: result.rides });
+    } else {
+      res.status(400).json({ success: false, message: result.error });
+    }
+  } catch (error) {
+    console.error("Error fetching client rides:", error.message);
+    res.status(500).json({
+      success: false,
+      message: "Error fetching client rides",
+      error: error.message,
+    });
+  }
+});
+
+app.get("/api/rides/:rideId/requests", async (req, res) => {
+  try {
+    const { rideId } = req.params;
+
+    if (!rideId) {
+      return res.status(400).json({
+        success: false,
+        message: "rideId is required",
+      });
+    }
+
+    // Get ride requests from blockchain
+    const result = await blockchainService.getRideRequests(rideId);
+
+    if (result.success) {
+      res.status(200).json({ success: true, requests: result.requests });
+    } else {
+      res.status(400).json({ success: false, message: result.error });
+    }
+  } catch (error) {
+    console.error("Error fetching ride requests:", error.message);
+    res.status(500).json({
+      success: false,
+      message: "Error fetching ride requests",
+      error: error.message,
+    });
+  }
+});
+
+app.post("/api/rides/:rideId/request", async (req, res) => {
+  try {
+    const { rideId } = req.params;
+    const { clientMetaAccount } = req.body;
+
+    if (!rideId || !clientMetaAccount) {
+      return res.status(400).json({
+        success: false,
+        message: "rideId and clientMetaAccount are required",
+      });
+    }
+
+    console.log(
+      `Received ride request for ride ${rideId} from account ${clientMetaAccount}`
+    );
+
+    // Check if the requestRide method exists
+    if (typeof blockchainService.requestRide !== "function") {
+      console.error("requestRide method is not available!");
+      return res.status(500).json({
+        success: false,
+        message: "Server configuration error: requestRide method not available",
+      });
+    }
+
+    // Request ride on blockchain
+    try {
+      const result = await blockchainService.requestRide(
+        clientMetaAccount,
+        rideId
+      );
+
+      if (result.success) {
+        console.log(
+          `Ride ${rideId} requested successfully by ${clientMetaAccount}`
+        );
+        return res.status(200).json({
+          success: true,
+          requestId: result.requestId,
+        });
+      } else {
+        console.error(`Error requesting ride: ${result.error}`);
+        return res.status(400).json({
+          success: false,
+          message: result.error,
+        });
+      }
+    } catch (blockchainError) {
+      console.error("Blockchain error requesting ride:", blockchainError);
+      return res.status(500).json({
+        success: false,
+        message: "Blockchain error requesting ride",
+        error: blockchainError.message,
+      });
+    }
+  } catch (error) {
+    console.error("Error requesting ride:", error.message);
+    return res.status(500).json({
+      success: false,
+      message: "Error requesting ride",
+      error: error.message,
+    });
+  }
+});
+
+app.post("/api/rides/:rideId/accept-request/:requestId", async (req, res) => {
+  try {
+    const { rideId, requestId } = req.params;
+    const { driverMetaAccount } = req.body;
+
+    if (!rideId || !requestId || !driverMetaAccount) {
+      return res.status(400).json({
+        success: false,
+        message: "rideId, requestId, and driverMetaAccount are required",
+      });
+    }
+
+    // Accept ride request on blockchain
+    const result = await blockchainService.acceptRideRequest(
+      driverMetaAccount,
+      rideId,
+      requestId
+    );
+
+    if (result.success) {
+      res.status(200).json({ success: true });
+    } else {
+      res.status(400).json({ success: false, message: result.error });
+    }
+  } catch (error) {
+    console.error("Error accepting ride request:", error.message);
+    res.status(500).json({
+      success: false,
+      message: "Error accepting ride request",
+      error: error.message,
+    });
+  }
+});
+
+app.post("/api/rides/:rideId/reject-request/:requestId", async (req, res) => {
+  try {
+    const { rideId, requestId } = req.params;
+    const { driverMetaAccount } = req.body;
+
+    if (!rideId || !requestId || !driverMetaAccount) {
+      return res.status(400).json({
+        success: false,
+        message: "rideId, requestId, and driverMetaAccount are required",
+      });
+    }
+
+    // Reject ride request on blockchain
+    const result = await blockchainService.rejectRideRequest(
+      driverMetaAccount,
+      rideId,
+      requestId
+    );
+
+    if (result.success) {
+      res.status(200).json({ success: true });
+    } else {
+      res.status(400).json({ success: false, message: result.error });
+    }
+  } catch (error) {
+    console.error("Error rejecting ride request:", error.message);
+    res.status(500).json({
+      success: false,
+      message: "Error rejecting ride request",
+      error: error.message,
+    });
+  }
+});
+
+app.post("/api/rides/:rideId/start", async (req, res) => {
+  try {
+    const { rideId } = req.params;
+    const { driverMetaAccount } = req.body;
+
+    if (!rideId || !driverMetaAccount) {
+      return res.status(400).json({
+        success: false,
+        message: "rideId and driverMetaAccount are required",
+      });
+    }
+
+    // Start ride on blockchain
+    const result = await blockchainService.startRide(driverMetaAccount, rideId);
+
+    if (result.success) {
+      res.status(200).json({ success: true });
+    } else {
+      res.status(400).json({ success: false, message: result.error });
+    }
+  } catch (error) {
+    console.error("Error starting ride:", error.message);
+    res.status(500).json({
+      success: false,
+      message: "Error starting ride",
+      error: error.message,
+    });
+  }
+});
+
+app.post("/api/rides/:rideId/complete", async (req, res) => {
+  try {
+    const { rideId } = req.params;
+    const { driverMetaAccount } = req.body;
+
+    if (!driverMetaAccount) {
+      return res.status(400).json({
+        success: false,
+        message: "driverMetaAccount is required",
+      });
+    }
+
+    // Complete ride on blockchain
+    const result = await blockchainService.completeRide(
+      driverMetaAccount,
+      rideId
+    );
+
+    if (result.success) {
+      res.status(200).json({ success: true });
+    } else {
+      res.status(400).json({ success: false, message: result.error });
+    }
+  } catch (error) {
+    console.error("Error completing ride:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+app.post("/api/rides/:rideId/confirm", async (req, res) => {
+  try {
+    const { rideId } = req.params;
+    const { clientMetaAccount, price } = req.body;
+
+    if (!rideId || !clientMetaAccount || price === undefined) {
+      return res.status(400).json({
+        success: false,
+        message: "rideId, clientMetaAccount, and price are required",
+      });
+    }
+
+    // Confirm ride and make payment on blockchain
+    const result = await blockchainService.confirmRide(
+      clientMetaAccount,
+      rideId,
+      price
+    );
+
+    if (result.success) {
+      res.status(200).json({ success: true });
+    } else {
+      res.status(400).json({ success: false, message: result.error });
+    }
+  } catch (error) {
+    console.error("Error confirming ride and making payment:", error.message);
+    res.status(500).json({
+      success: false,
+      message: "Error confirming ride and making payment",
+      error: error.message,
+    });
+  }
+});
+
+app.post(
+  "/api/rides/:rideId/complete-passenger/:passengerId",
+  async (req, res) => {
+    try {
+      const { rideId, passengerId } = req.params;
+      const { driverMetaAccount } = req.body;
+
+      if (!rideId || !passengerId || !driverMetaAccount) {
+        return res.status(400).json({
+          success: false,
+          message: "rideId, passengerId, and driverMetaAccount are required",
+        });
+      }
+
+      // Complete ride for passenger on blockchain
+      const result = await blockchainService.completeRideForPassenger(
+        driverMetaAccount,
+        rideId,
+        passengerId
+      );
+
+      if (result.success) {
+        res.status(200).json({ success: true });
+      } else {
+        res.status(400).json({ success: false, message: result.error });
+      }
+    } catch (error) {
+      console.error("Error completing ride for passenger:", error.message);
+      res.status(500).json({
+        success: false,
+        message: "Error completing ride for passenger",
+        error: error.message,
+      });
+    }
+  }
+);
+
+app.post("/api/rides/:rideId/cancel", async (req, res) => {
+  try {
+    const { rideId } = req.params;
+    const { driverMetaAccount } = req.body;
+
+    if (!rideId || !driverMetaAccount) {
+      return res.status(400).json({
+        success: false,
+        message: "rideId and driverMetaAccount are required",
+      });
+    }
+
+    // Cancel ride on blockchain
+    const result = await blockchainService.cancelRide(
+      driverMetaAccount,
+      rideId
+    );
+
+    if (result.success) {
+      res.status(200).json({ success: true });
+    } else {
+      res.status(400).json({ success: false, message: result.error });
+    }
+  } catch (error) {
+    console.error("Error cancelling ride:", error.message);
+    res.status(500).json({
+      success: false,
+      message: "Error cancelling ride",
+      error: error.message,
+    });
+  }
+});
+
+app.get("/api/nearby-drivers", async (req, res) => {
+  try {
+    const { latitude, longitude, radius } = req.query;
+
+    if (!latitude || !longitude) {
+      return res.status(400).json({
+        success: false,
+        message: "latitude and longitude are required",
+      });
+    }
+
+    // Get nearby drivers from blockchain
+    const result = await blockchainService.getNearbyDrivers(
+      parseFloat(latitude),
+      parseFloat(longitude),
+      parseInt(radius) || 5000 // Default 5km radius
+    );
+
+    if (result.success) {
+      res.status(200).json({ success: true, drivers: result.drivers });
+    } else {
+      res.status(400).json({ success: false, message: result.error });
+    }
+  } catch (error) {
+    console.error("Error fetching nearby drivers:", error.message);
+    res.status(500).json({
+      success: false,
+      message: "Error fetching nearby drivers",
+      error: error.message,
+    });
+  }
+});
+
+// Get all available Ganache accounts
+app.get("/api/accounts", async (req, res) => {
+  try {
+    const accounts = await blockchainService.getAccounts();
+    res.status(200).json({ success: true, accounts });
+  } catch (error) {
+    console.error("Error fetching accounts:", error.message);
+    res.status(500).json({
+      success: false,
+      message: "Error fetching accounts",
+      error: error.message,
+    });
+  }
+});
+
+// Generate driver ID endpoint
+app.get("/api/generate-driver-id", async (req, res) => {
+  try {
+    if (!blockchainService.isInitialized()) {
+      return res
+        .status(503)
+        .json({ error: "Blockchain service not initialized" });
+    }
+
+    let driverId;
+    try {
+      const totalDrivers = await blockchainService.getTotalDrivers();
+      driverId = totalDrivers + 1;
+      console.log(`Generated driver ID ${driverId} using getTotalDrivers`);
+    } catch (error) {
+      console.log(
+        "Error getting total drivers, falling back to driverIdCounter:",
+        error
+      );
+      driverId = driverIdCounter++;
+    }
+
+    res.json({ driverId });
+  } catch (error) {
+    console.error("Error generating driver ID:", error);
+    res.status(500).json({ error: "Failed to generate driver ID" });
+  }
+});
+
+// Generate client ID endpoint
+app.get("/api/generate-client-id", async (req, res) => {
+  try {
+    // Check if blockchain service is initialized
+    if (!blockchainService.isInitialized) {
+      return res.status(503).json({
+        success: false,
+        message:
+          "Blockchain service is not initialized. Please try again later.",
+      });
+    }
+
+    let newClientId;
+
+    try {
+      // Try to get the total number of clients using getTotalClients
+      const totalClients = await blockchainService.contract.methods
+        .getTotalClients()
+        .call();
+      newClientId = parseInt(totalClients) + 1;
+    } catch (error) {
+      console.log(
+        "getTotalClients not available, using clientIdCounter directly"
+      );
+      // If getTotalClients is not available, use clientIdCounter directly
+      const clientIdCounter = await blockchainService.contract.methods
+        .clientIdCounter()
+        .call();
+      newClientId = parseInt(clientIdCounter);
+    }
+
+    res.status(200).json({
+      success: true,
+      clientId: newClientId,
+    });
+  } catch (error) {
+    console.error("Error generating client ID:", error.message);
+    res.status(500).json({
+      success: false,
+      message: "Error generating client ID",
+      error: error.message,
+    });
+  }
+});
+
+// Cancel ride request endpoint
+app.post("/api/rides/:rideId/cancel-request", async (req, res) => {
+  try {
+    const { rideId } = req.params;
+    const { clientId, clientMetaAccount } = req.body;
+
+    if (!rideId || !clientId || !clientMetaAccount) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Missing required parameters: rideId, clientId, or clientMetaAccount",
+      });
+    }
+
+    console.log(
+      `Processing ride request cancellation for ride ${rideId} by client ${clientId}`
+    );
+
+    // Cancel ride request on blockchain
+    const result = await blockchainService.cancelRideRequest(
+      clientMetaAccount,
+      rideId,
+      clientId
+    );
+
+    if (result.success) {
+      return res.status(200).json({
+        success: true,
+        message: "Ride request cancelled successfully",
+        rideId,
+      });
+    } else {
+      return res.status(400).json({
+        success: false,
+        message: result.error,
+      });
+    }
+  } catch (error) {
+    console.error("Error cancelling ride request:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to cancel ride request",
+      error: error.message,
+    });
+  }
+});
+
+// Complete payment endpoint
+app.post("/api/complete-payment", async (req, res) => {
+  try {
+    const { rideId, clientId, transactionHash } = req.body;
+
+    if (!rideId || !clientId || !transactionHash) {
+      return res.status(400).json({
+        status: "failure",
+        message:
+          "Missing required parameters: rideId, clientId, or transactionHash",
+      });
+    }
+
+    console.log(
+      `Processing payment completion for ride ${rideId} by client ${clientId}`
+    );
+    console.log(`Transaction hash: ${transactionHash}`);
+
+    // Update ride status in the blockchain
+    await blockchainService.completeRidePayment(
+      rideId,
+      clientId,
+      transactionHash
+    );
+
+    return res.status(200).json({
+      status: "success",
+      message: "Payment completed successfully",
+      rideId,
+      transactionHash,
+    });
+  } catch (error) {
+    console.error("Error completing payment:", error);
+    return res.status(500).json({
+      status: "failure",
+      message: "Failed to complete payment",
+      error: error.message,
+    });
+  }
+});
+
+// API to request a ride by a client
+app.post("/api/ride-request", async (req, res) => {
+  try {
+    const { clientMetaAccount, rideId } = req.body;
+
+    console.log(
+      `[/api/ride-request] Received request from ${clientMetaAccount} for ride ${rideId}`
+    );
+
+    if (!clientMetaAccount || !rideId) {
+      console.error(
+        `[/api/ride-request] Missing required parameters: clientMetaAccount=${clientMetaAccount}, rideId=${rideId}`
+      );
+      return res.status(400).json({
+        status: "error",
+        message:
+          "Missing required parameters: clientMetaAccount and rideId are required",
+      });
+    }
+
+    // Request ride using BlockchainService
+    const result = await blockchainService.requestRide(
+      clientMetaAccount,
+      rideId
+    );
+
+    if (result.success) {
+      console.log(
+        `[/api/ride-request] Ride request successful, request ID: ${result.requestId}`
+      );
+      res.status(200).json({
+        status: "success",
+        message: "Ride requested successfully",
+        requestId: result.requestId,
+      });
+    } else {
+      console.error(`[/api/ride-request] Ride request failed: ${result.error}`);
+      res.status(500).json({
+        status: "error",
+        message: result.error || "Failed to request ride",
+      });
+    }
+  } catch (error) {
+    console.error("[/api/ride-request] Error:", error);
+    res.status(500).json({
+      status: "error",
+      message: error.message || "An unexpected error occurred",
+    });
+  }
+});
+
+// API to get client rides
+app.get("/api/client-rides", async (req, res) => {
+  try {
+    const { metaAccount } = req.query;
+
+    console.log(
+      `[/api/client-rides] Fetching rides for account: ${metaAccount}`
+    );
+
+    if (!metaAccount) {
+      console.error("[/api/client-rides] No MetaMask account provided");
+      return res.status(400).json({
+        status: "error",
+        message: "MetaMask account is required",
+      });
+    }
+
+    // First, get the client ID for this account
+    const clientId = await blockchainService.getClientIdByAccount(metaAccount);
+
+    if (!clientId) {
+      console.log(
+        `[/api/client-rides] Client not found for account: ${metaAccount}`
+      );
+      return res.status(200).json({
+        status: "success",
+        rides: [],
+      });
+    }
+
+    console.log(`[/api/client-rides] Found client ID: ${clientId}`);
+
+    // Now get the client's rides
+    const rides = await blockchainService.getClientRides(clientId);
+
+    return res.status(200).json({
+      status: "success",
+      rides: rides,
+    });
+  } catch (error) {
+    console.error("[/api/client-rides] Error:", error);
+    return res.status(500).json({
+      status: "error",
+      message: error.message || "An unexpected error occurred",
+    });
+  }
+});
+
+// Start server with improved error handling
+const startServer = async () => {
+  try {
+    // Wait for blockchain service to initialize with a timeout
+    let attempts = 0;
+    const maxAttempts = 5;
+    const delay = 2000;
+
+    while (!blockchainService.isInitialized && attempts < maxAttempts) {
+      console.log(
+        `Waiting for blockchain service to initialize (attempt ${
+          attempts + 1
+        }/${maxAttempts})...`
+      );
+      await new Promise((resolve) => setTimeout(resolve, delay));
+      attempts++;
+    }
+
+    if (!blockchainService.isInitialized) {
+      console.warn(
+        "WARNING: Blockchain service failed to initialize. Some blockchain-related features may not work."
+      );
+      console.warn(
+        "The server will start anyway, but blockchain functionality will be limited."
+      );
+      console.warn(
+        "Please ensure Ganache is running on port 8545 and restart the server."
+      );
+    } else {
+      console.log("Blockchain service initialized successfully");
+    }
+
+    // Start the server regardless of blockchain initialization
+    app.listen(Port, () => {
+      console.log(`Server is running on port ${Port}`);
+    });
+  } catch (error) {
+    console.error("Failed to start server:", error);
+    process.exit(1);
+  }
+};
+
+startServer();
