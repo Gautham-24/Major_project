@@ -1071,57 +1071,6 @@ app.post("/api/complete-payment", async (req, res) => {
   }
 });
 
-// API to request a ride by a client
-app.post("/api/ride-request", async (req, res) => {
-  try {
-    const { clientMetaAccount, rideId } = req.body;
-
-    console.log(
-      `[/api/ride-request] Received request from ${clientMetaAccount} for ride ${rideId}`
-    );
-
-    if (!clientMetaAccount || !rideId) {
-      console.error(
-        `[/api/ride-request] Missing required parameters: clientMetaAccount=${clientMetaAccount}, rideId=${rideId}`
-      );
-      return res.status(400).json({
-        status: "error",
-        message:
-          "Missing required parameters: clientMetaAccount and rideId are required",
-      });
-    }
-
-    // Request ride using BlockchainService
-    const result = await blockchainService.requestRide(
-      clientMetaAccount,
-      rideId
-    );
-
-    if (result.success) {
-      console.log(
-        `[/api/ride-request] Ride request successful, request ID: ${result.requestId}`
-      );
-      res.status(200).json({
-        status: "success",
-        message: "Ride requested successfully",
-        requestId: result.requestId,
-      });
-    } else {
-      console.error(`[/api/ride-request] Ride request failed: ${result.error}`);
-      res.status(500).json({
-        status: "error",
-        message: result.error || "Failed to request ride",
-      });
-    }
-  } catch (error) {
-    console.error("[/api/ride-request] Error:", error);
-    res.status(500).json({
-      status: "error",
-      message: error.message || "An unexpected error occurred",
-    });
-  }
-});
-
 // API to get client rides
 app.get("/api/client-rides", async (req, res) => {
   try {
@@ -1139,33 +1088,221 @@ app.get("/api/client-rides", async (req, res) => {
       });
     }
 
-    // First, get the client ID for this account
-    const clientId = await blockchainService.getClientIdByAccount(metaAccount);
-
-    if (!clientId) {
-      console.log(
-        `[/api/client-rides] Client not found for account: ${metaAccount}`
+    try {
+      // First, get the client ID for this account
+      const clientId = await blockchainService.getClientIdByAccount(
+        metaAccount
       );
-      return res.status(200).json({
-        status: "success",
-        rides: [],
+
+      if (!clientId) {
+        console.log(
+          `[/api/client-rides] Client not found for account: ${metaAccount}`
+        );
+        return res.status(200).json({
+          status: "success",
+          rides: [],
+        });
+      }
+
+      console.log(`[/api/client-rides] Found client ID: ${clientId}`);
+
+      // Try using the alternative endpoint that works
+      try {
+        const response = await blockchainService.getClientRides(clientId);
+
+        if (response && response.success) {
+          return res.status(200).json({
+            status: "success",
+            rides: response.rides || [],
+          });
+        } else {
+          console.error(
+            `[/api/client-rides] Error from blockchain service: ${
+              response?.error || "Unknown error"
+            }`
+          );
+          throw new Error(response?.error || "Failed to fetch rides");
+        }
+      } catch (blockchainError) {
+        console.error(
+          `[/api/client-rides] Blockchain service error: ${blockchainError.message}`
+        );
+        // Fallback: Get all rides and filter for this client
+        const allRides = await blockchainService.getActiveRides();
+
+        if (allRides && allRides.success && Array.isArray(allRides.rides)) {
+          const clientRides = allRides.rides.filter(
+            (ride) => ride.participants && ride.participants.includes(clientId)
+          );
+
+          return res.status(200).json({
+            status: "success",
+            rides: clientRides || [],
+          });
+        } else {
+          throw new Error("Failed to get rides using fallback method");
+        }
+      }
+    } catch (error) {
+      console.error(
+        `[/api/client-rides] Error getting client data: ${error.message}`
+      );
+      return res.status(500).json({
+        status: "error",
+        message: error.message || "An unexpected error occurred",
       });
     }
-
-    console.log(`[/api/client-rides] Found client ID: ${clientId}`);
-
-    // Now get the client's rides
-    const rides = await blockchainService.getClientRides(clientId);
-
-    return res.status(200).json({
-      status: "success",
-      rides: rides,
-    });
   } catch (error) {
     console.error("[/api/client-rides] Error:", error);
     return res.status(500).json({
       status: "error",
       message: error.message || "An unexpected error occurred",
+    });
+  }
+});
+
+// Ride request endpoint
+app.post("/api/ride-request", async (req, res) => {
+  try {
+    const { rideId, metaAccount, clientMetaAccount } = req.body;
+    const accountToUse = clientMetaAccount || metaAccount; // Use clientMetaAccount if available, otherwise fall back to metaAccount
+
+    console.log(
+      `[/api/ride-request] Received request from ${accountToUse} for ride ${rideId}`
+    );
+
+    if (!rideId || !accountToUse) {
+      console.error(
+        `[/api/ride-request] Missing required parameters: accountToUse=${accountToUse}, rideId=${rideId}`
+      );
+      return res.status(400).json({
+        success: false,
+        status: "error",
+        message: "rideId and clientMetaAccount (or metaAccount) are required",
+      });
+    }
+
+    // Request ride on blockchain
+    const result = await blockchainService.requestRide(accountToUse, rideId);
+
+    if (result.success) {
+      console.log(
+        `[/api/ride-request] Ride request successful, request ID: ${result.requestId}`
+      );
+      res.status(201).json({
+        success: true,
+        status: "success",
+        requestId: result.requestId,
+        message: "Ride request submitted successfully",
+      });
+    } else {
+      console.error(`[/api/ride-request] Ride request failed: ${result.error}`);
+      res.status(400).json({
+        success: false,
+        status: "error",
+        message: result.error || "Failed to request ride",
+      });
+    }
+  } catch (error) {
+    console.error("Error requesting ride:", error.message);
+    res.status(500).json({
+      success: false,
+      status: "error",
+      message: "Error requesting ride",
+      error: error.message,
+    });
+  }
+});
+
+// Endpoint to check a client's ride request status
+app.get("/api/rides/:rideId/request-status/:clientId", async (req, res) => {
+  try {
+    const { rideId, clientId } = req.params;
+
+    if (!rideId || !clientId) {
+      return res.status(400).json({
+        success: false,
+        message: "rideId and clientId are required",
+      });
+    }
+
+    // Get the ride details from blockchain to check requests
+    const ride = await blockchainService.getRide(rideId);
+
+    if (!ride) {
+      return res.status(404).json({
+        success: false,
+        message: "Ride not found",
+      });
+    }
+
+    // Get all requests for this ride
+    const rideRequests = await blockchainService.getRideRequests(rideId);
+
+    if (
+      !rideRequests.success ||
+      !rideRequests.requests ||
+      rideRequests.requests.length === 0
+    ) {
+      return res.status(200).json({
+        success: true,
+        status: null, // No requests found for this ride
+      });
+    }
+
+    // Find the client's request for this ride
+    const clientRequest = rideRequests.requests.find(
+      (request) => request.clientId.toString() === clientId.toString()
+    );
+
+    if (!clientRequest) {
+      return res.status(200).json({
+        success: true,
+        status: null, // Client hasn't requested this ride
+      });
+    }
+
+    // Return the status of the request
+    return res.status(200).json({
+      success: true,
+      status: clientRequest.status, // pending, accepted, or rejected
+    });
+  } catch (error) {
+    console.error("Error checking ride request status:", error.message);
+    return res.status(500).json({
+      success: false,
+      message: "Error checking ride request status",
+      error: error.message,
+    });
+  }
+});
+
+// Endpoint to check payment status for a specific ride and client
+app.get("/api/rides/:rideId/payment-status/:clientId", async (req, res) => {
+  try {
+    const { rideId, clientId } = req.params;
+
+    if (!rideId || !clientId) {
+      return res.status(400).json({
+        success: false,
+        message: "rideId and clientId are required",
+      });
+    }
+
+    // Get payment status from blockchain
+    const result = await blockchainService.checkPaymentStatus(rideId, clientId);
+
+    return res.status(200).json({
+      success: true,
+      paid: result.paid,
+      status: result.status,
+    });
+  } catch (error) {
+    console.error("Error checking payment status:", error.message);
+    return res.status(500).json({
+      success: false,
+      message: "Error checking payment status",
+      error: error.message,
     });
   }
 });
@@ -1188,7 +1325,10 @@ const startServer = async () => {
       attempts++;
     }
 
-    if (!blockchainService.isInitialized) {
+    // Check if blockchain service initialized successfully
+    const isInitialized = blockchainService.isInitialized;
+
+    if (!isInitialized) {
       console.warn(
         "WARNING: Blockchain service failed to initialize. Some blockchain-related features may not work."
       );

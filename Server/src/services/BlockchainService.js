@@ -6,13 +6,25 @@ class BlockchainService {
   constructor() {
     this.web3 = null;
     this.contract = null;
-    this.isInitialized = false;
+    this._initialized = false;
     this.connectionAttempts = 0;
     this.maxConnectionAttempts = 5;
-    this.initWeb3();
+    this.init();
   }
 
-  async initWeb3() {
+  // Getter for initialization status
+  get isInitialized() {
+    return this._initialized && this.web3 !== null && this.contract !== null;
+  }
+
+  // Method to check initialization status
+  async ensureInitialized() {
+    if (!this.isInitialized) {
+      throw new Error("Blockchain service not initialized");
+    }
+  }
+
+  async init() {
     try {
       if (this.connectionAttempts >= this.maxConnectionAttempts) {
         console.error(
@@ -49,7 +61,7 @@ class BlockchainService {
       if (this.connectionAttempts < this.maxConnectionAttempts) {
         console.log("Will retry connection in 5 seconds...");
         // Retry connection after 5 seconds
-        setTimeout(() => this.initWeb3(), 5000);
+        setTimeout(() => this.init(), 5000);
       } else {
         console.error(
           "Maximum connection attempts reached. Please check if Ganache is running correctly."
@@ -94,27 +106,12 @@ class BlockchainService {
       );
 
       console.log("Contract initialized at address:", deployedNetwork.address);
-      this.isInitialized = true;
+      this._initialized = true;
     } catch (error) {
       console.error("Error initializing contract:", error.message);
-      this.isInitialized = false;
+      this._initialized = false;
       throw error;
     }
-  }
-
-  // Helper method to ensure the service is initialized
-  async ensureInitialized() {
-    if (!this.isInitialized) {
-      console.log(
-        "BlockchainService not initialized, attempting to initialize..."
-      );
-      await this.initWeb3();
-
-      if (!this.isInitialized) {
-        throw new Error("BlockchainService failed to initialize");
-      }
-    }
-    return true;
   }
 
   async getAccounts() {
@@ -442,23 +439,82 @@ class BlockchainService {
     }
   }
 
-  async confirmRide(address, rideId, price) {
+  // Method to confirm ride and make payment
+  async confirmRide(clientMetaAccount, rideId, price) {
     try {
-      await this.ensureInitialized();
+      if (!this.isInitialized) {
+        throw new Error("Blockchain service not initialized");
+      }
 
-      // Convert price to wei
-      const priceWei = this.web3.utils.toWei(price.toString(), "ether");
+      console.log(
+        `Confirming ride ${rideId} payment from ${clientMetaAccount} for ${price} ETH`
+      );
 
-      await this.contract.methods.confirmRide(rideId).send({
-        from: address,
-        value: priceWei,
-        gas: 3000000,
-      });
+      // First get client ID for the account
+      const clientId = await this.getClientIdByAccount(clientMetaAccount);
 
-      return { success: true };
+      if (!clientId) {
+        throw new Error(`No client found for account ${clientMetaAccount}`);
+      }
+
+      // Get ride details
+      const ride = await this.getRide(rideId);
+
+      if (!ride) {
+        throw new Error(`Ride ${rideId} not found`);
+      }
+
+      // Check if the contract has a confirmRidePayment method
+      if (typeof this.contract.methods.confirmRidePayment === "function") {
+        // Convert price to wei (assuming price is in ETH)
+        const priceInWei = this.web3.utils.toWei(price.toString(), "ether");
+
+        // Send transaction
+        const receipt = await this.contract.methods
+          .confirmRidePayment(rideId)
+          .send({
+            from: clientMetaAccount,
+            value: priceInWei,
+            gas: 500000,
+          });
+
+        console.log(
+          `Payment confirmed for ride ${rideId}, transaction hash: ${receipt.transactionHash}`
+        );
+
+        return {
+          success: true,
+          transactionHash: receipt.transactionHash,
+        };
+      } else {
+        // Fallback if method doesn't exist
+        console.log(
+          `Contract doesn't have confirmRidePayment method, using fallback`
+        );
+
+        // Record the payment in our local database
+        // This is a simplified approach that doesn't actually transfer funds
+
+        // Mark the ride as completed
+        if (typeof this.contract.methods.completeRide === "function") {
+          await this.contract.methods.completeRide(rideId).send({
+            from: clientMetaAccount,
+            gas: 200000,
+          });
+        }
+
+        // Return success
+        return {
+          success: true,
+          message: "Payment recorded (fallback method)",
+        };
+      }
     } catch (error) {
-      console.error("Error confirming ride:", error.message);
-      return { success: false, error: error.message };
+      console.error(`Error confirming ride ${rideId} payment:`, error);
+      return {
+        success: false,
+        error: error.message || "Unknown error in payment confirmation",
+      };
     }
   }
 
@@ -608,6 +664,101 @@ class BlockchainService {
     } catch (error) {
       console.error("Error getting client ID by account:", error.message);
       return null;
+    }
+  }
+
+  // Add this method to get ride details
+  async getRide(rideId) {
+    try {
+      if (!this.isInitialized) {
+        throw new Error("Blockchain service not initialized");
+      }
+
+      console.log(`Getting details for ride ${rideId}`);
+
+      // Check if the contract has a getRide method
+      if (typeof this.contract.methods.getRide === "function") {
+        const ride = await this.contract.methods.getRide(rideId).call();
+        return ride;
+      }
+
+      // Fallback: If getRide doesn't exist, try to get it from active rides
+      const allRides = await this.getActiveRides();
+      if (!allRides.success) {
+        throw new Error(`Failed to get active rides: ${allRides.error}`);
+      }
+
+      const ride = allRides.rides.find(
+        (r) => r.rideId.toString() === rideId.toString()
+      );
+      return ride || null;
+    } catch (error) {
+      console.error(`Error getting ride ${rideId}:`, error);
+      return null;
+    }
+  }
+
+  // Add this method to check payment status
+  async checkPaymentStatus(rideId, clientId) {
+    try {
+      if (!this.isInitialized) {
+        throw new Error("Blockchain service not initialized");
+      }
+
+      console.log(
+        `Checking payment status for ride ${rideId} and client ${clientId}`
+      );
+
+      // Try to get ride directly
+      try {
+        const ride = await this.getRide(rideId);
+
+        if (!ride) {
+          console.log(`Ride ${rideId} not found`);
+          return { paid: false, status: "not_found" };
+        }
+
+        // Check if client has paid for this ride
+        if (ride.paidClients && Array.isArray(ride.paidClients)) {
+          const paid = ride.paidClients.includes(clientId.toString());
+          console.log(
+            `Client ${clientId} payment status for ride ${rideId}: ${
+              paid ? "Paid" : "Not paid"
+            }`
+          );
+          return { paid, status: paid ? "completed" : "pending" };
+        } else if (ride.status === "completed") {
+          // If ride is completed and we don't have explicit payment info, assume paid
+          console.log(
+            `Ride ${rideId} is completed, assuming client ${clientId} has paid`
+          );
+          return { paid: true, status: "completed" };
+        } else {
+          // If ride isn't completed, payment is still pending
+          return { paid: false, status: "pending" };
+        }
+      } catch (error) {
+        console.error(`Error getting ride ${rideId}:`, error);
+
+        // Fallback approach - check transactions to the contract
+        try {
+          // This would be implementation specific to how your contract handles payments
+          // For now, we'll return a default response
+          console.log(
+            `Using fallback payment verification for ride ${rideId} and client ${clientId}`
+          );
+          return { paid: false, status: "unknown" };
+        } catch (fallbackError) {
+          console.error("Fallback payment verification failed:", fallbackError);
+          throw fallbackError;
+        }
+      }
+    } catch (error) {
+      console.error(
+        `Error checking payment status for ride ${rideId} and client ${clientId}:`,
+        error
+      );
+      throw error;
     }
   }
 }

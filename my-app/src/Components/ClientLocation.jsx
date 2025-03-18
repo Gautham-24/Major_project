@@ -60,6 +60,7 @@ function ClientLocation() {
   const [contract, setContract] = useState(null);
   const [showMap, setShowMap] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [paymentStatus, setPaymentStatus] = useState({});
 
   const fetchMetaAccount = async () => {
     if (window.ethereum) {
@@ -698,7 +699,45 @@ function ClientLocation() {
     setShowMap(!showMap);
   };
 
-  // Function to fetch available rides with improved error handling
+  // Function to check ride request status for current client
+  const getRideRequestStatus = async (rideId) => {
+    try {
+      const clientId = localStorage.getItem("clientId");
+      if (!clientId) return null;
+
+      const response = await axios.get(
+        `http://localhost:8080/api/rides/${rideId}/request-status/${clientId}`
+      );
+
+      if (response.data.success) {
+        return response.data.status; // "pending", "accepted", "rejected", or null
+      }
+      return null;
+    } catch (error) {
+      console.error(`Error checking request status for ride ${rideId}:`, error);
+      return null;
+    }
+  };
+
+  // Function to fetch status for all available rides
+  const updateRideStatuses = async () => {
+    const updatedRides = await Promise.all(
+      availableRides.map(async (ride) => {
+        const status = await getRideRequestStatus(ride.rideId);
+        return { ...ride, requestStatus: status };
+      })
+    );
+    setAvailableRides(updatedRides);
+  };
+
+  // When available rides are fetched, check their request status
+  useEffect(() => {
+    if (availableRides.length > 0) {
+      updateRideStatuses();
+    }
+  }, [availableRides]);
+
+  // Update the fetchAvailableRides function to include the status check
   const fetchAvailableRides = async () => {
     try {
       setIsLoading(true);
@@ -706,7 +745,18 @@ function ClientLocation() {
       const response = await axios.get("http://localhost:8080/api/rides");
 
       if (response.data.success) {
-        setAvailableRides(response.data.rides);
+        // Get rides from response
+        const rides = response.data.rides;
+
+        // Check request status for each ride
+        const ridesWithStatus = await Promise.all(
+          rides.map(async (ride) => {
+            const requestStatus = await getRideRequestStatus(ride.rideId);
+            return { ...ride, requestStatus };
+          })
+        );
+
+        setAvailableRides(ridesWithStatus);
       } else {
         console.error("Error fetching rides:", response.data.message);
       }
@@ -722,33 +772,72 @@ function ClientLocation() {
     try {
       setIsLoading(true);
       const clientId = localStorage.getItem("clientId");
+      const metaAccount = localStorage.getItem("metaAccount");
 
-      if (!clientId) {
-        console.error("Client ID not found in localStorage");
+      if (!clientId || !metaAccount) {
+        console.error("Client ID or metaAccount not found in localStorage");
         return;
       }
+
+      console.log(
+        `Fetching rides for client ${clientId} with account ${metaAccount}`
+      );
 
       const response = await axios.get(
         `http://localhost:8080/api/rides/client/${clientId}`
       );
 
       if (response.data.success) {
-        // Process rides to add payment status
-        const processedRides = response.data.rides.map((ride) => {
-          // Check if ride is completed and payment is pending
-          const paymentPending =
-            ride.status === "completed" &&
-            (!ride.passengers ||
-              !ride.passengers.find((p) => p.clientId === parseInt(clientId))
-                ?.paid);
+        // Process rides to determine payment status
+        const processedRides = await Promise.all(
+          response.data.rides.map(async (ride) => {
+            // For rides marked as completed by driver but not fully completed
+            if (ride.status === "completed" || ride.status === "in_progress") {
+              try {
+                // Check payment status from server
+                const paymentCheck = await axios.get(
+                  `http://localhost:8080/api/rides/${ride.rideId}/payment-status/${clientId}`
+                );
 
-          return {
-            ...ride,
-            paymentPending,
-          };
-        });
+                if (paymentCheck.data.success) {
+                  // If the server confirms it's paid, mark as fully completed
+                  if (paymentCheck.data.paid) {
+                    return {
+                      ...ride,
+                      status: "completed",
+                      paymentPending: false,
+                    };
+                  } else {
+                    // If not paid, mark as payment pending
+                    return {
+                      ...ride,
+                      status: "payment_pending",
+                      paymentPending: true,
+                    };
+                  }
+                }
+              } catch (error) {
+                console.error(
+                  `Error checking payment for ride ${ride.rideId}:`,
+                  error
+                );
+              }
 
+              // Default to payment pending if we couldn't verify
+              return {
+                ...ride,
+                status: "payment_pending",
+                paymentPending: true,
+              };
+            }
+
+            return ride;
+          })
+        );
+
+        console.log("Processed rides with payment status:", processedRides);
         setMyRides(processedRides);
+        setSelectedRide(null);
       } else {
         console.error("Error fetching rides:", response.data.message);
       }
@@ -759,51 +848,92 @@ function ClientLocation() {
     }
   };
 
-  // Function to request a ride
+  // Update the existing checkPaymentStatus function
+  const checkPaymentStatus = async (rideId, clientId) => {
+    try {
+      const response = await fetch(
+        `http://localhost:8080/api/rides/${rideId}/payment-status/${clientId}`
+      );
+      const data = await response.json();
+
+      if (data.success) {
+        setPaymentStatus((prev) => ({
+          ...prev,
+          [rideId]: data,
+        }));
+      }
+    } catch (error) {
+      console.error("Error checking payment status:", error);
+    }
+  };
+
+  // Add a polling mechanism to update ride statuses periodically
+  useEffect(() => {
+    // Set up an interval to refresh ride statuses every 10 seconds
+    const statusInterval = setInterval(() => {
+      if (availableRides.length > 0) {
+        updateRideStatuses();
+      }
+    }, 10000); // 10 seconds
+
+    // Clear the interval when component unmounts
+    return () => clearInterval(statusInterval);
+  }, [availableRides]);
+
+  // After making a ride request, update statuses more aggressively
+  // to show the pending status immediately
   const requestRide = async (rideId) => {
     try {
-      setLoading(true);
+      setIsLoading(true);
+      const metaAccount = localStorage.getItem("metaAccount");
 
-      // Get MetaMask account
-      if (!window.ethereum) {
-        toast.error("MetaMask is not installed");
-        setLoading(false);
+      if (!metaAccount) {
+        alert("Please connect your MetaMask account first");
         return;
       }
 
-      const accounts = await window.ethereum.request({
-        method: "eth_requestAccounts",
-      });
-      const metaAccount = accounts[0];
+      console.log(`Requesting ride ${rideId} with account ${metaAccount}`);
 
-      console.log(`Requesting ride ${rideId} for account ${metaAccount}`);
-
-      // Request the ride directly through the API
-      const response = await fetch("/api/ride-request", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      const response = await axios.post(
+        "http://localhost:8080/api/ride-request",
+        {
+          rideId,
           clientMetaAccount: metaAccount,
-          rideId: rideId,
-        }),
-      });
+        }
+      );
 
-      const data = await response.json();
+      if (response.data.status === "success" || response.data.success) {
+        alert("Ride request submitted successfully!");
 
-      if (response.ok) {
-        toast.success("Ride requested successfully");
-        // Refresh the ride list
-        fetchAvailableRides();
-        fetchClientRides(metaAccount);
+        // Update the current rides array to show pending status immediately
+        setAvailableRides((prevRides) =>
+          prevRides.map((ride) =>
+            ride.rideId === rideId
+              ? { ...ride, requestStatus: "pending" }
+              : ride
+          )
+        );
+
+        // Then fetch everything fresh
+        fetchMyRides();
+        setTimeout(updateRideStatuses, 1000); // Update again after 1 second
+
+        return true;
       } else {
-        console.error("Error requesting ride:", data.message);
-        toast.error(`Failed to request ride: ${data.message}`);
+        alert(
+          "Error requesting ride: " + (response.data.message || "Unknown error")
+        );
+        return false;
       }
     } catch (error) {
       console.error("Error in requestRide:", error);
-      toast.error(`Error: ${error.message}`);
+      alert(
+        "Error requesting ride: " +
+          (error.response?.data?.message || error.message)
+      );
+      return false;
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
@@ -848,68 +978,63 @@ function ClientLocation() {
   // Function to make payment for a completed ride
   const makePayment = async (ride) => {
     try {
-      if (!window.ethereum) {
-        alert("Please install MetaMask to make payments");
+      setIsLoading(true);
+      const metaAccount = localStorage.getItem("metaAccount");
+
+      if (!metaAccount) {
+        alert("Please connect your MetaMask account first");
+        setIsLoading(false);
         return;
       }
 
-      setLoading(true);
+      if (!window.ethereum) {
+        alert("MetaMask is not installed");
+        setIsLoading(false);
+        return;
+      }
 
-      // Request account access if needed
-      const accounts = await window.ethereum.request({
-        method: "eth_requestAccounts",
-      });
-      const account = accounts[0];
-
-      // Convert price from ETH to Wei
-      const priceInWei = window.web3.utils.toWei(
-        ride.price.toString(),
-        "ether"
+      // Confirm the payment with the user
+      const confirmPay = window.confirm(
+        `Are you sure you want to pay ${ride.price} ETH for this ride?`
       );
 
-      // Send transaction
-      const transaction = {
-        from: account,
-        to: ride.driverWalletAddress,
-        value: priceInWei,
-      };
+      if (!confirmPay) {
+        setIsLoading(false);
+        return;
+      }
 
-      // Send the transaction
-      const txHash = await window.ethereum.request({
-        method: "eth_sendTransaction",
-        params: [transaction],
-      });
-
-      // Update ride status to completed
-      const response = await fetch(
-        `http://localhost:8080/api/complete-payment`,
+      console.log(
+        `Processing payment for ride ${ride.rideId} by client with account ${metaAccount}`
+      );
+      // Request the payment using the blockchain service
+      const response = await axios.post(
+        `http://localhost:8080/api/rides/${ride.rideId}/confirm`,
         {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            rideId: ride.id,
-            clientId: clientId,
-            transactionHash: txHash,
-          }),
+          clientMetaAccount: metaAccount,
+          price: ride.price,
         }
       );
 
-      const data = await response.json();
-
-      if (data.status === "success") {
-        alert("Payment successful! Ride completed.");
-        // Refresh rides
-        fetchMyRides();
+      if (response.data.success) {
+        alert("Payment successful! Thank you for using ChainRide.");
+        // Update payment status locally
+        setPaymentStatus((prev) => ({
+          ...prev,
+          [ride.rideId]: { paid: true, status: "completed" },
+        }));
+        // Refresh the rides list
+        await fetchMyRides();
       } else {
-        alert(`Payment failed: ${data.message}`);
+        alert("Payment failed: " + (response.data.message || "Unknown error"));
       }
     } catch (error) {
-      console.error("Payment error:", error);
-      alert(`Payment failed: ${error.message}`);
+      console.error("Error making payment:", error);
+      alert(
+        "Error making payment: " +
+          (error.response?.data?.message || error.message)
+      );
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
@@ -997,6 +1122,47 @@ function ClientLocation() {
     };
   }, []);
 
+  // Update useEffect to check payment status for payment pending rides
+  useEffect(() => {
+    const interval = setInterval(() => {
+      myRides.forEach((ride) => {
+        if (ride.status === "payment_pending") {
+          checkPaymentStatus(ride.rideId, ride.clientId);
+        }
+      });
+    }, 5000); // Check every 5 seconds
+
+    return () => clearInterval(interval);
+  }, [myRides]);
+
+  // Update the renderRideStatus function to show payment status
+  const renderRideStatus = (ride) => {
+    switch (ride.status) {
+      case "pending":
+        return <span className="text-yellow-500">Pending</span>;
+      case "accepted":
+        return <span className="text-blue-500">Accepted</span>;
+      case "in_progress":
+        return <span className="text-green-500">In Progress</span>;
+      case "payment_pending":
+        const status = paymentStatus[ride.rideId];
+        return (
+          <div className="flex items-center gap-2">
+            <span className="text-orange-500">Payment Pending</span>
+            {status?.paid && (
+              <span className="text-green-500">(Payment Confirmed)</span>
+            )}
+          </div>
+        );
+      case "completed":
+        return <span className="text-green-500">Completed</span>;
+      case "cancelled":
+        return <span className="text-red-500">Cancelled</span>;
+      default:
+        return <span className="text-gray-500">Unknown</span>;
+    }
+  };
+
   return (
     <>
       <div className={`ClientMapMainContainer ${showMap ? "show-map" : ""}`}>
@@ -1056,6 +1222,8 @@ function ClientLocation() {
                       selectedRide && selectedRide.rideId === ride.rideId
                         ? "selected"
                         : ""
+                    } ${
+                      ride.requestStatus ? `status-${ride.requestStatus}` : ""
                     }`}
                     onClick={() => setSelectedRide(ride)}
                   >
@@ -1082,16 +1250,37 @@ function ClientLocation() {
                       </p>
                     </div>
 
-                    <button
-                      className="request-ride-button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        requestRide(ride.rideId);
-                      }}
-                      disabled={isLoading}
-                    >
-                      Request Ride
-                    </button>
+                    {/* Conditional rendering based on request status */}
+                    {!ride.requestStatus && (
+                      <button
+                        className="request-ride-button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          requestRide(ride.rideId);
+                        }}
+                        disabled={isLoading}
+                      >
+                        Request Ride
+                      </button>
+                    )}
+
+                    {ride.requestStatus === "pending" && (
+                      <div className="request-status pending">
+                        Request Pending
+                      </div>
+                    )}
+
+                    {ride.requestStatus === "accepted" && (
+                      <div className="request-status accepted">
+                        Request Accepted
+                      </div>
+                    )}
+
+                    {ride.requestStatus === "rejected" && (
+                      <div className="request-status rejected">
+                        Request Rejected
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -1111,36 +1300,35 @@ function ClientLocation() {
 
               <div className="rides-container">
                 {myRides.map((ride) => (
-                  <div key={ride.rideId} className={`ride-item ${ride.status}`}>
+                  <div
+                    key={ride.rideId}
+                    className={`ride-item ${
+                      selectedRide && selectedRide.rideId === ride.rideId
+                        ? "selected"
+                        : ""
+                    } ${ride.paymentPending ? "payment-pending" : ride.status}`}
+                    onClick={() => setSelectedRide(ride)}
+                  >
                     <div className="ride-header">
                       <h4>Ride #{ride.rideId}</h4>
                       <span
-                        className={`status ${ride.status} ${
-                          ride.status === "completed" && ride.paymentPending
-                            ? "payment-pending"
-                            : ""
+                        className={`status ${
+                          ride.paymentPending ? "payment-pending" : ride.status
                         }`}
                       >
-                        {ride.status === "completed" && ride.paymentPending
-                          ? "Payment Pending"
-                          : ride.status}
+                        {renderRideStatus(ride)}
                       </span>
                     </div>
 
                     <div className="ride-details">
                       <p>
-                        <strong>From:</strong>{" "}
-                        {ride.startLocation || "Not specified"}
+                        <strong>From:</strong> {ride.startLocation}
                       </p>
                       <p>
-                        <strong>To:</strong>{" "}
-                        {ride.destination || "Not specified"}
+                        <strong>To:</strong> {ride.destination}
                       </p>
                       <p>
                         <strong>Price:</strong> {ride.price} ETH
-                      </p>
-                      <p>
-                        <strong>Driver:</strong> Driver #{ride.driverId}
                       </p>
                       <p>
                         <strong>Departure:</strong>{" "}
@@ -1148,21 +1336,29 @@ function ClientLocation() {
                       </p>
                     </div>
 
-                    {/* Show payment button for completed rides with pending payment */}
-                    {ride.status === "completed" && ride.paymentPending && (
+                    {/* Show payment button for rides with pending payment */}
+                    {ride.paymentPending && (
                       <button
                         className="payment-button"
-                        onClick={() => makePayment(ride)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          makePayment(ride);
+                        }}
+                        disabled={isLoading}
                       >
                         Make Payment ({ride.price} ETH)
                       </button>
                     )}
 
-                    {/* Show cancel button for active rides */}
-                    {ride.status === "active" && (
+                    {/* Show cancel button for rides with pending status */}
+                    {ride.status === "pending" && (
                       <button
                         className="cancel-button"
-                        onClick={() => cancelRide(ride.rideId)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          cancelRide(ride.rideId);
+                        }}
+                        disabled={isLoading}
                       >
                         Cancel Request
                       </button>

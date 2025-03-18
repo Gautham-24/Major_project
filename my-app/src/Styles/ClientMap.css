@@ -396,3 +396,39 @@
 .cancel-button:hover {
   background-color: #d32f2f;
 }
+
+/* Add styling for ride request status indicators */
+.request-status {
+  display: block;
+  padding: 8px 12px;
+  border-radius: 4px;
+  margin-top: 10px;
+  font-weight: bold;
+  text-align: center;
+  color: white;
+}
+
+.request-status.pending {
+  background-color: #f39c12; /* Orange */
+}
+
+.request-status.accepted {
+  background-color: #2ecc71; /* Green */
+}
+
+.request-status.rejected {
+  background-color: #e74c3c; /* Red */
+}
+
+/* Add subtle background for the entire ride card based on status */
+.ride-item.status-pending {
+  border-left: 4px solid #f39c12;
+}
+
+.ride-item.status-accepted {
+  border-left: 4px solid #2ecc71;
+}
+
+.ride-item.status-rejected {
+  border-left: 4px solid #e74c3c;
+}
