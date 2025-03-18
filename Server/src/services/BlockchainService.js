@@ -582,6 +582,35 @@ class BlockchainService {
       };
     }
   }
+
+  // Get driver ID by wallet address
+  async getDriverIdByAccount(address) {
+    try {
+      await this.ensureInitialized();
+      const driverId = await this.contract.methods
+        .driverAddressToId(address)
+        .call();
+      return driverId > 0 ? driverId : null;
+    } catch (error) {
+      console.error("Error getting driver ID by account:", error.message);
+      return null;
+    }
+  }
+
+  // Get client ID by wallet address
+  async getClientIdByAccount(address) {
+    try {
+      await this.ensureInitialized();
+      const clientId = await this.contract.methods
+        .clientAddressToId(address)
+        .call();
+      return clientId > 0 ? clientId : null;
+    } catch (error) {
+      console.error("Error getting client ID by account:", error.message);
+      return null;
+    }
+  }
 }
 
+// Export the class instance
 module.exports = new BlockchainService();

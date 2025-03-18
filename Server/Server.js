@@ -5,26 +5,26 @@ const path = require("path");
 const loginRoute = require("./routes/login");
 const verifiedRoute = require("./routes/Verified");
 const cookieJwtAuth = require("./src/middleware/cookieJwtAuth");
-let blockchainService;
-try {
-  delete require.cache[require.resolve("./BlockchainService")];
-  blockchainService = require("./BlockchainService");
-  console.log("BlockchainService loaded successfully");
 
-  if (!blockchainService.getClientIdByAccount) {
-    console.error("ERROR: getClientIdByAccount method is missing!");
-  }
+// Import blockchain service
+const blockchainService = require("./src/services/BlockchainService");
+console.log("BlockchainService loaded successfully");
 
-  if (!blockchainService.getClient) {
-    console.error("ERROR: getClient method is missing!");
-  }
+// Verify required methods are available
+const requiredMethods = [
+  "getClientIdByAccount",
+  "getClient",
+  "registerClient",
+  "registerDriver",
+  "getDriverIdByAccount",
+  "getDriver",
+];
 
-  if (!blockchainService.registerClient) {
-    console.error("ERROR: registerClient method is missing!");
+requiredMethods.forEach((method) => {
+  if (typeof blockchainService[method] !== "function") {
+    console.error(`ERROR: ${method} method is missing from BlockchainService!`);
   }
-} catch (error) {
-  console.error("Error loading BlockchainService:", error);
-}
+});
 
 const app = express();
 const Port = 8080;
@@ -156,23 +156,12 @@ app.get("/api/driver-by-account/:metaAccount", async (req, res) => {
       });
     }
 
-    // Get all drivers
-    const result = await blockchainService.getAllDrivers();
+    // Get driver ID directly from blockchain
+    const driverId = await blockchainService.getDriverIdByAccount(metaAccount);
 
-    if (!result.success) {
-      return res.status(500).json({
-        success: false,
-        message: "Error getting drivers",
-        error: result.error,
-      });
-    }
-
-    // Find driver with matching wallet address
-    const driver = result.drivers.find(
-      (d) => d.walletAddress.toLowerCase() === metaAccount.toLowerCase()
-    );
-
-    if (driver) {
+    if (driverId) {
+      // Get driver details
+      const driver = await blockchainService.getDriver(driverId);
       return res.status(200).json({
         success: true,
         driver,
