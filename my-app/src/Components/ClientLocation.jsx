@@ -748,9 +748,13 @@ function ClientLocation() {
         // Get rides from response
         const rides = response.data.rides;
 
+        // Only show rides with status "active" - this is the issue
+        // We should be filtering by statuses that aren't appropriate for the available list
+        const activeRides = rides.filter((ride) => ride.status === "active");
+
         // Check request status for each ride
         const ridesWithStatus = await Promise.all(
-          rides.map(async (ride) => {
+          activeRides.map(async (ride) => {
             const requestStatus = await getRideRequestStatus(ride.rideId);
             return { ...ride, requestStatus };
           })
@@ -779,70 +783,73 @@ function ClientLocation() {
         return;
       }
 
-      console.log(
-        `Fetching rides for client ${clientId} with account ${metaAccount}`
-      );
+      console.log(`[fetchMyRides] Getting rides for client ID ${clientId}`);
 
+      // Get client rides from the server
       const response = await axios.get(
         `http://localhost:8080/api/rides/client/${clientId}`
       );
 
+      console.log("[fetchMyRides] Response:", response.data);
+
       if (response.data.success) {
-        // Process rides to determine payment status
-        const processedRides = await Promise.all(
-          response.data.rides.map(async (ride) => {
-            // For rides marked as completed by driver but not fully completed
-            if (ride.status === "completed" || ride.status === "in_progress") {
-              try {
-                // Check payment status from server
-                const paymentCheck = await axios.get(
-                  `http://localhost:8080/api/rides/${ride.rideId}/payment-status/${clientId}`
-                );
+        const ridesData = response.data.rides || [];
+        console.log("[fetchMyRides] Received rides data:", ridesData);
 
-                if (paymentCheck.data.success) {
-                  // If the server confirms it's paid, mark as fully completed
-                  if (paymentCheck.data.paid) {
-                    return {
-                      ...ride,
-                      status: "completed",
-                      paymentPending: false,
-                    };
-                  } else {
-                    // If not paid, mark as payment pending
-                    return {
-                      ...ride,
-                      status: "payment_pending",
-                      paymentPending: true,
-                    };
-                  }
-                }
-              } catch (error) {
-                console.error(
-                  `Error checking payment for ride ${ride.rideId}:`,
-                  error
-                );
-              }
+        if (ridesData.length === 0) {
+          console.log("[fetchMyRides] No rides found for this client");
+          setMyRides([]);
+          setSelectedRide(null);
+          return;
+        }
 
-              // Default to payment pending if we couldn't verify
-              return {
-                ...ride,
-                status: "payment_pending",
-                paymentPending: true,
-              };
+        // Process the rides to add additional information
+        const processedRides = ridesData.map((ride) => {
+          // Create a display status based on ride status and client role
+          let displayStatus = ride.status;
+
+          if (ride.isPassenger) {
+            if (ride.status === "active") {
+              displayStatus = "Ride Confirmed - Waiting to Start";
+            } else if (ride.status === "in_progress") {
+              displayStatus = "Ride In Progress";
+            } else if (ride.status === "completed") {
+              displayStatus = "Ride Completed";
             }
+          } else if (ride.hasRequest) {
+            if (ride.requestStatus === "pending") {
+              displayStatus = "Request Pending";
+            } else if (ride.requestStatus === "accepted") {
+              displayStatus = "Request Accepted";
+            } else if (ride.requestStatus === "rejected") {
+              displayStatus = "Request Rejected";
+            }
+          }
 
-            return ride;
-          })
-        );
+          // Return the processed ride with display status
+          return {
+            ...ride,
+            id: ride.rideId || ride.id,
+            displayStatus,
+            // Format dates for display
+            departureDate: new Date(
+              parseInt(ride.departureTime) * 1000
+            ).toLocaleDateString(),
+            departureTime: new Date(
+              parseInt(ride.departureTime) * 1000
+            ).toLocaleTimeString(),
+          };
+        });
 
-        console.log("Processed rides with payment status:", processedRides);
+        console.log("[fetchMyRides] Processed rides:", processedRides);
         setMyRides(processedRides);
-        setSelectedRide(null);
       } else {
         console.error("Error fetching rides:", response.data.message);
+        setMyRides([]);
       }
     } catch (error) {
       console.error("Error fetching my rides:", error);
+      setMyRides([]);
     } finally {
       setIsLoading(false);
     }
@@ -867,9 +874,8 @@ function ClientLocation() {
     }
   };
 
-  // Add a polling mechanism to update ride statuses periodically
+  // Set up an interval to refresh ride statuses every 10 seconds
   useEffect(() => {
-    // Set up an interval to refresh ride statuses every 10 seconds
     const statusInterval = setInterval(() => {
       if (availableRides.length > 0) {
         updateRideStatuses();
@@ -879,6 +885,17 @@ function ClientLocation() {
     // Clear the interval when component unmounts
     return () => clearInterval(statusInterval);
   }, [availableRides]);
+
+  // Add a similar interval for My Rides to keep them updated
+  useEffect(() => {
+    const myRidesInterval = setInterval(() => {
+      if (showMyRides) {
+        fetchMyRides();
+      }
+    }, 10000); // 10 seconds
+
+    return () => clearInterval(myRidesInterval);
+  }, [showMyRides]);
 
   // After making a ride request, update statuses more aggressively
   // to show the pending status immediately
@@ -1135,33 +1152,75 @@ function ClientLocation() {
     return () => clearInterval(interval);
   }, [myRides]);
 
-  // Update the renderRideStatus function to show payment status
+  // Update the renderRideStatus function
   const renderRideStatus = (ride) => {
-    switch (ride.status) {
-      case "pending":
-        return <span className="text-yellow-500">Pending</span>;
-      case "accepted":
-        return <span className="text-blue-500">Accepted</span>;
-      case "in_progress":
-        return <span className="text-green-500">In Progress</span>;
-      case "payment_pending":
-        const status = paymentStatus[ride.rideId];
+    if (ride.isPassenger) {
+      if (ride.status === "active") {
+        return <span className="ride-status confirmed">Ride Confirmed</span>;
+      } else if (ride.status === "in_progress") {
         return (
-          <div className="flex items-center gap-2">
-            <span className="text-orange-500">Payment Pending</span>
-            {status?.paid && (
-              <span className="text-green-500">(Payment Confirmed)</span>
-            )}
-          </div>
+          <span className="ride-status in-progress">Ride In Progress</span>
         );
-      case "completed":
-        return <span className="text-green-500">Completed</span>;
-      case "cancelled":
-        return <span className="text-red-500">Cancelled</span>;
-      default:
-        return <span className="text-gray-500">Unknown</span>;
+      } else if (ride.status === "completed") {
+        return <span className="ride-status completed">Ride Completed</span>;
+      }
     }
+
+    if (ride.hasRequest) {
+      if (ride.requestStatus === "pending") {
+        return <span className="ride-status pending">Request Pending</span>;
+      } else if (ride.requestStatus === "accepted") {
+        return <span className="ride-status accepted">Request Accepted</span>;
+      } else if (ride.requestStatus === "rejected") {
+        return <span className="ride-status rejected">Request Rejected</span>;
+      }
+    }
+
+    return (
+      <span className="ride-status">{ride.displayStatus || ride.status}</span>
+    );
   };
+
+  // Add UI toggle functions
+  const showAvailableRides = () => {
+    setShowRidesList(true);
+    setShowMyRides(false);
+    fetchAvailableRides();
+  };
+
+  const showClientRides = () => {
+    setShowRidesList(false);
+    setShowMyRides(true);
+    fetchMyRides();
+  };
+
+  // Add this function to poll for ride status changes more frequently when a ride is in progress
+  useEffect(() => {
+    // Only set up polling if we have at least one ride in "in_progress" status
+    const hasInProgressRide = myRides.some(
+      (ride) => ride.status === "in_progress"
+    );
+
+    if (hasInProgressRide && showMyRides) {
+      console.log("Setting up frequent polling for in-progress rides");
+
+      // Poll every 5 seconds for in-progress rides
+      const statusInterval = setInterval(() => {
+        fetchMyRides();
+      }, 5000);
+
+      return () => clearInterval(statusInterval);
+    }
+  }, [myRides, showMyRides]);
+
+  // Add this logic to the render method to clearly show "No rides" message when appropriate
+  {
+    showMyRides && myRides.length === 0 && (
+      <div className="no-rides-message">
+        <p>You don't have any rides yet. Check available rides to book one!</p>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -1169,19 +1228,21 @@ function ClientLocation() {
         <div className="LocationFinderContainer">
           <div className="client-controls">
             <button
-              className="available-rides-button"
-              onClick={fetchAvailableRides}
+              className={`available-rides-button ${
+                showRidesList ? "active" : ""
+              }`}
+              onClick={showAvailableRides}
               disabled={isLoading}
             >
-              {isLoading ? "Loading..." : "Available Rides"}
+              {isLoading && showRidesList ? "Loading..." : "Available Rides"}
             </button>
 
             <button
-              className="my-rides-button"
-              onClick={fetchMyRides}
+              className={`my-rides-button ${showMyRides ? "active" : ""}`}
+              onClick={showClientRides}
               disabled={isLoading}
             >
-              {isLoading ? "Loading..." : "My Rides"}
+              {isLoading && showMyRides ? "Loading..." : "My Rides"}
             </button>
 
             <button className="toggle-map-button" onClick={toggleMap}>

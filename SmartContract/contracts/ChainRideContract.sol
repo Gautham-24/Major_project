@@ -88,6 +88,9 @@ contract ChainRideContract {
     mapping(uint256 => Passenger) public passengers;
     mapping(uint256 => RideRequest) public rideRequests;
     
+    // Add new mapping to track rides per client
+    mapping(uint256 => uint256[]) private clientRides; // clientId => rideIds
+    
     // Arrays to keep track of all entities
     uint256[] public allDriverIds;
     uint256[] public allClientIds;
@@ -265,6 +268,9 @@ contract ChainRideContract {
         ride.availableSeats--;
         allPassengerIds.push(newPassengerId);
         
+        // Add this ride to the client's rides mapping
+        clientRides[request.clientId].push(_rideId);
+        
         emit RideRequestAccepted(_rideId, request.clientId);
     }
     
@@ -415,6 +421,11 @@ contract ChainRideContract {
     
     function getRidePassengers(uint256 _rideId) public view rideExists(_rideId) returns (uint256[] memory) {
         return rides[_rideId].passengerIds;
+    }
+    
+    // Add function to get all rides for a client
+    function getClientRides(uint256 _clientId) public view returns (uint256[] memory) {
+        return clientRides[_clientId];
     }
     
     function getTotalDrivers() public view returns (uint256) {

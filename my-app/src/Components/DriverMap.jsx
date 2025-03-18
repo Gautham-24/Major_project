@@ -670,9 +670,19 @@ function DriverMap() {
     }
   };
 
-  // Update the ride selection handler to fetch requests
+  // Add a debug function to log passenger information
+  const logPassengerInfo = (ride) => {
+    console.log("Passenger info for ride", ride.rideId || ride.id);
+    console.log("Passenger count:", ride.passengerCount);
+    console.log("Passenger IDs:", ride.passengerIds);
+    console.log("Passengers array:", ride.passengers);
+    console.log("Available seats:", ride.availableSeats);
+  };
+
+  // Add this to the handleRideSelect function
   const handleRideSelect = (ride) => {
     setSelectedRide(ride);
+    logPassengerInfo(ride);
     fetchRideRequests(ride.rideId);
   };
 
@@ -688,13 +698,43 @@ function DriverMap() {
 
       if (response.data.success) {
         alert("Ride request accepted!");
-        fetchRideRequests(rideId);
-        fetchMyRides(); // Refresh the rides list
+        fetchRideRequests(rideId); // Refresh requests
+
+        // Add delay to allow blockchain to process
+        setTimeout(async () => {
+          // Get updated passenger count
+          try {
+            const passengerResponse = await axios.get(
+              `http://localhost:8080/api/rides/${rideId}/passenger-count`
+            );
+
+            if (passengerResponse.data.success) {
+              console.log(
+                "Updated passenger count:",
+                passengerResponse.data.passengerCount
+              );
+
+              // Update the selected ride with new passenger count
+              if (selectedRide && selectedRide.rideId === rideId) {
+                setSelectedRide((prev) => ({
+                  ...prev,
+                  passengerCount: passengerResponse.data.passengerCount,
+                  passengerIds: passengerResponse.data.passengerIds,
+                }));
+              }
+            }
+          } catch (error) {
+            console.error("Error getting updated passenger count:", error);
+          }
+
+          // Refresh all rides
+          fetchMyRides();
+        }, 2000);
       } else {
         alert("Error accepting ride request: " + response.data.message);
       }
     } catch (error) {
-      console.error("Error confirming ride request:", error);
+      console.error("Error accepting ride request:", error);
       alert("Error accepting ride request. Please try again.");
     }
   };
@@ -1133,12 +1173,10 @@ function DriverMap() {
 
                     <div className="ride-details">
                       <p>
-                        <strong>From:</strong>{" "}
-                        {ride.startLocation || "Not specified"}
+                        <strong>From:</strong> {ride.from || ride.startLocation}
                       </p>
                       <p>
-                        <strong>To:</strong>{" "}
-                        {ride.destination || "Not specified"}
+                        <strong>To:</strong> {ride.to || ride.destination}
                       </p>
                       <p>
                         <strong>Price:</strong> {ride.price} ETH
@@ -1148,13 +1186,23 @@ function DriverMap() {
                       </p>
                       <p>
                         <strong>Departure:</strong>{" "}
-                        {new Date(ride.departureTime).toLocaleString()}
+                        {new Date(
+                          parseInt(ride.departureTime) * 1000
+                        ).toLocaleString()}
                       </p>
                       <p>
                         <strong>Passengers:</strong>{" "}
-                        {ride.passengers ? ride.passengers.length : 0}
+                        {ride.passengers
+                          ? ride.passengers.length
+                          : ride.passengerCount
+                          ? ride.passengerCount
+                          : ride.passengerIds
+                          ? ride.passengerIds.length
+                          : 0}
                       </p>
-
+                      <p>
+                        <strong>Status:</strong> {ride.status}
+                      </p>
                       {ride.status === "active" && (
                         <button
                           className="start-ride-button"
@@ -1166,7 +1214,6 @@ function DriverMap() {
                           Start Ride
                         </button>
                       )}
-
                       {ride.status === "in_progress" && (
                         <button
                           className="complete-ride-button"

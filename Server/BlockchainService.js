@@ -559,62 +559,102 @@ class BlockchainService {
     try {
       if (!this.contract) {
         console.error("[getClientRides] Contract not initialized");
-        throw new Error("Contract not initialized");
+        return { success: false, error: "Contract not initialized" };
       }
 
       console.log(`[getClientRides] Fetching rides for client: ${clientId}`);
 
       if (!clientId) {
         console.error("[getClientRides] Invalid clientId parameter");
-        return [];
+        return { success: false, error: "Invalid client ID" };
       }
 
-      // First get all ride IDs
-      const allRideIds = await this.contract.methods.getAllRideIds().call();
-      console.log(`[getClientRides] Found ${allRideIds.length} total rides`);
+      // Use the new smart contract function to get all rides for this client
+      const clientRideIds = await this.contract.methods
+        .getClientRides(clientId)
+        .call();
+      console.log(
+        `[getClientRides] Found ${clientRideIds.length} rides for client ${clientId}`
+      );
 
       // Initialize array for client rides
       const clientRides = [];
 
-      // For each ride, check if the client is a passenger
-      for (const rideId of allRideIds) {
+      // Get details for each ride
+      for (const rideId of clientRideIds) {
         try {
           const ride = await this.contract.methods.getRideById(rideId).call();
 
-          // Check if this ride has the client as a passenger
-          const isPassenger = await this.contract.methods
-            .isClientInRide(rideId, clientId)
-            .call();
-
-          // Check if this ride has a pending request from the client
-          const hasRequest = await this.contract.methods
-            .hasClientRequestedRide(rideId, clientId)
-            .call();
-
-          if (isPassenger || hasRequest) {
-            console.log(
-              `[getClientRides] Client ${clientId} is associated with ride ${rideId}`
-            );
-
-            // Format the ride data
-            const formattedRide = {
-              id: rideId,
-              driverId: ride.driverId,
-              driverWalletAddress: ride.driverWalletAddress,
-              from: ride.startLocation,
-              to: ride.destination,
-              pickupPoint: ride.pickupPoint,
-              availableSeats: ride.availableSeats,
-              price: ride.price,
-              status: ride.status,
-              createdAt: ride.createdAt,
-              departureTime: ride.departureTime,
-              isPassenger,
-              hasRequest,
-            };
-
-            clientRides.push(formattedRide);
+          // Determine if client is a passenger in this ride
+          let isPassenger = false;
+          for (const passengerId of ride.passengerIds || []) {
+            try {
+              const passenger = await this.contract.methods
+                .getPassenger(passengerId)
+                .call();
+              if (
+                passenger &&
+                passenger.clientId.toString() === clientId.toString()
+              ) {
+                isPassenger = true;
+                break;
+              }
+            } catch (passengerError) {
+              console.error(
+                `[getClientRides] Error checking passenger ${passengerId}:`,
+                passengerError
+              );
+            }
           }
+
+          // Determine if client has a request for this ride and its status
+          let hasRequest = false;
+          let requestStatus = null;
+
+          for (const requestId of ride.requestIds || []) {
+            try {
+              const request = await this.contract.methods
+                .getRideRequest(requestId)
+                .call();
+              if (
+                request &&
+                request.clientId.toString() === clientId.toString()
+              ) {
+                hasRequest = true;
+                requestStatus = request.status;
+                break;
+              }
+            } catch (requestError) {
+              console.error(
+                `[getClientRides] Error checking request ${requestId}:`,
+                requestError
+              );
+            }
+          }
+
+          console.log(
+            `[getClientRides] Client ${clientId} is associated with ride ${rideId} (status: ${ride.status}, isPassenger: ${isPassenger})`
+          );
+
+          // Format the ride data
+          const formattedRide = {
+            rideId: rideId,
+            driverId: ride.driverId,
+            driverWalletAddress: ride.driverWalletAddress,
+            from: ride.startLocation,
+            to: ride.destination,
+            availableSeats: ride.availableSeats,
+            price: ride.price,
+            status: ride.status,
+            createdAt: ride.createdAt,
+            departureTime: ride.departureTime,
+            isPassenger: isPassenger,
+            hasRequest: hasRequest,
+            requestStatus: requestStatus,
+            passengerCount: ride.passengerIds ? ride.passengerIds.length : 0,
+          };
+
+          clientRides.push(formattedRide);
         } catch (rideError) {
           console.error(
             `[getClientRides] Error processing ride ${rideId}:`,
@@ -624,13 +664,309 @@ class BlockchainService {
         }
       }
 
-      console.log(
-        `[getClientRides] Found ${clientRides.length} rides for client ${clientId}`
-      );
-      return clientRides;
+      return { success: true, rides: clientRides };
     } catch (error) {
       console.error("[getClientRides] Error fetching client rides:", error);
-      throw error;
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Get client request status for a specific ride
+   * @param {string} rideId - The ride ID
+   * @param {string} clientId - The client ID
+   * @returns {Promise<Object>} - Object with success flag and status
+   */
+  async getClientRequestStatus(rideId, clientId) {
+    try {
+      if (!this.contract) {
+        console.error("[getClientRequestStatus] Contract not initialized");
+        return { success: false, error: "Contract not initialized" };
+      }
+
+      console.log(
+        `[getClientRequestStatus] Checking request status for ride ${rideId}, client ${clientId}`
+      );
+
+      // Get ride details
+      const ride = await this.contract.methods.getRideById(rideId).call();
+
+      if (!ride) {
+        return { success: false, error: "Ride not found" };
+      }
+
+      // Check if client is already a passenger
+      let isPassenger = false;
+
+      // Check if passengerIds exists and is not empty
+      if (ride.passengerIds && ride.passengerIds.length > 0) {
+        for (const passengerId of ride.passengerIds) {
+          try {
+            const passenger = await this.contract.methods
+              .getPassenger(passengerId)
+              .call();
+            if (
+              passenger &&
+              passenger.clientId.toString() === clientId.toString()
+            ) {
+              isPassenger = true;
+              break;
+            }
+          } catch (passengerError) {
+            console.error(
+              `[getClientRequestStatus] Error checking passenger ${passengerId}:`,
+              passengerError
+            );
+          }
+        }
+      }
+
+      if (isPassenger) {
+        return {
+          success: true,
+          status: "accepted",
+        };
+      }
+
+      // Check if client has a request for this ride
+      const requests = await this.contract.methods
+        .getRideRequests(rideId)
+        .call();
+
+      // Look for requests from this client
+      for (const requestId of requests) {
+        try {
+          const request = await this.contract.methods
+            .getRideRequest(requestId)
+            .call();
+
+          if (request && request.clientId.toString() === clientId.toString()) {
+            return {
+              success: true,
+              status: request.status,
+              requestId: requestId.toString(),
+            };
+          }
+        } catch (requestError) {
+          console.error(
+            `[getClientRequestStatus] Error processing request ${requestId}:`,
+            requestError
+          );
+          // Continue to next request
+        }
+      }
+
+      return { success: false, error: "No request found" };
+    } catch (error) {
+      console.error(
+        "[getClientRequestStatus] Error checking client request status:",
+        error
+      );
+      return { success: false, error: error.message };
+    }
+  }
+
+  async getActiveRides() {
+    try {
+      if (!this.contract) {
+        console.error("[getActiveRides] Contract not initialized");
+        throw new Error("Contract not initialized");
+      }
+
+      // Get active ride IDs from blockchain
+      const activeRideIds = await this.contract.methods.getActiveRides().call();
+      console.log(
+        `[getActiveRides] Found ${activeRideIds.length} active rides`
+      );
+
+      const rides = [];
+
+      // Get details for each active ride
+      for (const rideId of activeRideIds) {
+        try {
+          const ride = await this.contract.methods.getRideById(rideId).call();
+
+          // Get passenger count and IDs
+          const passengerIds = ride.passengerIds || [];
+
+          // Format the ride data
+          const formattedRide = {
+            rideId: rideId,
+            driverId: ride.driverId,
+            driverWalletAddress: ride.driverWalletAddress,
+            from: ride.startLocation,
+            to: ride.destination,
+            availableSeats: ride.availableSeats,
+            price: ride.price,
+            status: ride.status,
+            createdAt: ride.createdAt,
+            departureTime: ride.departureTime,
+            passengerIds: passengerIds,
+            passengerCount: passengerIds.length,
+          };
+
+          rides.push(formattedRide);
+        } catch (error) {
+          console.error(
+            `[getActiveRides] Error getting ride ${rideId}:`,
+            error
+          );
+        }
+      }
+
+      return { success: true, rides };
+    } catch (error) {
+      console.error("[getActiveRides] Error getting active rides:", error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  async getDriverRides(driverId) {
+    try {
+      if (!this.contract) {
+        console.error("[getDriverRides] Contract not initialized");
+        throw new Error("Contract not initialized");
+      }
+
+      // Get driver ride IDs from blockchain
+      const driverRideIds = await this.contract.methods
+        .getDriverRides(driverId)
+        .call();
+      console.log(
+        `[getDriverRides] Found ${driverRideIds.length} rides for driver ${driverId}`
+      );
+
+      const rides = [];
+
+      // Get details for each driver ride
+      for (const rideId of driverRideIds) {
+        try {
+          const ride = await this.contract.methods.getRideById(rideId).call();
+
+          // Get passenger count and IDs
+          const passengerIds = ride.passengerIds || [];
+          const passengers = [];
+
+          // Get details for each passenger
+          for (const passengerId of passengerIds) {
+            try {
+              const passenger = await this.contract.methods
+                .getPassenger(passengerId)
+                .call();
+              passengers.push({
+                id: passengerId,
+                clientId: passenger.clientId,
+                walletAddress: passenger.clientWalletAddress,
+                status: passenger.status,
+                paid: passenger.paid,
+              });
+            } catch (passengerError) {
+              console.error(
+                `[getDriverRides] Error getting passenger ${passengerId}:`,
+                passengerError
+              );
+            }
+          }
+
+          // Format the ride data
+          const formattedRide = {
+            rideId: rideId,
+            driverId: ride.driverId,
+            driverWalletAddress: ride.driverWalletAddress,
+            from: ride.startLocation,
+            to: ride.destination,
+            availableSeats: ride.availableSeats,
+            price: ride.price,
+            status: ride.status,
+            createdAt: ride.createdAt,
+            departureTime: ride.departureTime,
+            passengers: passengers,
+            passengerCount: passengers.length,
+          };
+
+          rides.push(formattedRide);
+        } catch (error) {
+          console.error(
+            `[getDriverRides] Error getting ride ${rideId}:`,
+            error
+          );
+        }
+      }
+
+      return { success: true, rides };
+    } catch (error) {
+      console.error("[getDriverRides] Error getting driver rides:", error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Get a specific ride by ID with all its details
+   * @param {string} rideId - The ride ID
+   * @returns {Promise<Object>} - The ride details or null if not found
+   */
+  async getRideById(rideId) {
+    try {
+      if (!this.contract) {
+        console.error("[getRideById] Contract not initialized");
+        return { success: false, error: "Contract not initialized" };
+      }
+
+      console.log(`[getRideById] Fetching ride: ${rideId}`);
+
+      // Get ride from blockchain
+      const ride = await this.contract.methods.getRideById(rideId).call();
+
+      if (!ride) {
+        console.log(`[getRideById] Ride with ID ${rideId} not found`);
+        return { success: false, error: "Ride not found" };
+      }
+
+      // Get passenger details if available
+      const passengerIds = ride.passengerIds || [];
+      const passengers = [];
+
+      for (const passengerId of passengerIds) {
+        try {
+          const passenger = await this.contract.methods
+            .getPassenger(passengerId)
+            .call();
+          passengers.push({
+            id: passengerId,
+            clientId: passenger.clientId,
+            walletAddress: passenger.clientWalletAddress,
+            status: passenger.status,
+            paid: passenger.paid,
+          });
+        } catch (passengerError) {
+          console.error(
+            `[getRideById] Error getting passenger ${passengerId}:`,
+            passengerError
+          );
+        }
+      }
+
+      // Format the ride data
+      const formattedRide = {
+        rideId: rideId,
+        driverId: ride.driverId,
+        driverWalletAddress: ride.driverWalletAddress,
+        from: ride.startLocation,
+        to: ride.destination,
+        availableSeats: ride.availableSeats,
+        price: ride.price,
+        status: ride.status,
+        createdAt: ride.createdAt,
+        departureTime: ride.departureTime,
+        passengerIds: passengerIds,
+        passengers: passengers,
+        passengerCount: passengerIds.length,
+      };
+
+      return { success: true, ride: formattedRide };
+    } catch (error) {
+      console.error(`[getRideById] Error getting ride ${rideId}:`, error);
+      return { success: false, error: error.message };
     }
   }
 }

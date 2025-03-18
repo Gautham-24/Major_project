@@ -1307,6 +1307,89 @@ app.get("/api/rides/:rideId/payment-status/:clientId", async (req, res) => {
   }
 });
 
+// Add new endpoint to check client request status
+app.get(
+  "/api/rides/:rideId/client-request-status/:clientId",
+  async (req, res) => {
+    try {
+      const { rideId, clientId } = req.params;
+
+      if (!rideId || !clientId) {
+        return res.status(400).json({
+          success: false,
+          message: "rideId and clientId are required",
+        });
+      }
+
+      // Get the request status for this client on this ride
+      const result = await blockchainService.getClientRequestStatus(
+        rideId,
+        clientId
+      );
+
+      if (result.success) {
+        res.status(200).json({
+          success: true,
+          status: result.status,
+          requestId: result.requestId || null,
+        });
+      } else {
+        res.status(404).json({
+          success: false,
+          message: result.error || "No request found",
+        });
+      }
+    } catch (error) {
+      console.error("Error checking client request status:", error.message);
+      res.status(500).json({
+        success: false,
+        message: "Error checking client request status",
+        error: error.message,
+      });
+    }
+  }
+);
+
+// Add a new endpoint to get passenger count for a ride
+app.get("/api/rides/:rideId/passenger-count", async (req, res) => {
+  try {
+    const { rideId } = req.params;
+
+    if (!rideId) {
+      return res.status(400).json({
+        success: false,
+        message: "rideId is required",
+      });
+    }
+
+    // Get the ride details
+    const response = await blockchainService.getRideById(rideId);
+
+    if (response.success && response.ride) {
+      const ride = response.ride;
+      const passengerCount = ride.passengerIds ? ride.passengerIds.length : 0;
+
+      res.status(200).json({
+        success: true,
+        passengerCount,
+        passengerIds: ride.passengerIds || [],
+      });
+    } else {
+      res.status(404).json({
+        success: false,
+        message: "Ride not found",
+      });
+    }
+  } catch (error) {
+    console.error("Error getting passenger count:", error.message);
+    res.status(500).json({
+      success: false,
+      message: "Error getting passenger count",
+      error: error.message,
+    });
+  }
+});
+
 // Start server with improved error handling
 const startServer = async () => {
   try {
