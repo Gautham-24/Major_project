@@ -5,7 +5,6 @@ import { useNavigate } from "react-router-dom";
 import "../Styles/DriverLogin.css";
 import DriverBackground from "../Assets/Images/Driver-BG.jpg";
 import axios from "axios";
-import DriverLogo from "../Assets/Images/Driver-Image.jpg";
 
 // Define server URLs with fallbacks - updated to include /api prefix
 const SERVER_URLS = ["http://localhost:8080"];
@@ -136,7 +135,7 @@ function DriverLogin() {
             {errorMessage && <p className="error-message">{errorMessage}</p>}
             <div className="registration-link">
               <p>
-                New to ChainRide?{" "}
+                New to RideApp?{" "}
                 <a href="/DriverRegistration">Register as a Driver</a>
               </p>
             </div>

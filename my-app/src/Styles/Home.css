@@ -1,13 +1,18 @@
 .HomeMainComponent {
   background-color: rgb(18, 17, 22);
+  width: 100%;
 }
+
 .HomeCar-Image {
-  width: 700px;
-  height: 450px;
+  width: 600px;
+  height: 400px;
+  object-fit: contain;
 }
+
 .HomeInnerComponent {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 2rem;
 }
 
 .Home-RideButton {
@@ -42,153 +47,167 @@
 }
 
 .Home-Symbol {
-  display: grid;
-  justify-content: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   color: white;
+  margin: 2rem 0;
+}
+
+.Down-Arrow-1,
+.Down-Arrow-2 {
+  width: 25px;
+  height: 25px;
+  animation-name: colorChange;
+  animation-duration: 2s;
+  animation-iteration-count: infinite;
+  animation-direction: alternate;
+  animation-timing-function: linear;
 }
 
 .Down-Arrow-1 {
-  margin-top: 2rem;
-  width: 25px;
-  height: 25px;
-  animation-name: colorChange;
-  animation-duration: 2s;
-  animation-iteration-count: infinite;
-  animation-direction: alternate;
-  animation-timing-function: linear;
-}
-
-.Down-Arrow-2 {
-  margin-top: -13px;
-  width: 25px;
-  height: 25px;
-  animation-name: colorChange;
-  animation-duration: 2s;
-  animation-iteration-count: infinite;
-  animation-direction: alternate;
-  animation-timing-function: linear;
+  margin-bottom: -5px;
 }
 
 @keyframes colorChange {
   0% {
     color: white;
   }
-
   100% {
     color: #00ddeb;
   }
 }
+
 .Part2MainContainer {
-  margin-top: 2rem;
+  padding: 3rem 0;
   background: rgb(18, 17, 22);
   color: white;
-  height: 26rem;
 }
 
-.Globe-Container {
-  background: rgb(18, 17, 22);
+.Part2MainContainer h1 {
+  text-align: center;
+  margin-bottom: 2rem;
+  color: rgb(232, 248, 3);
 }
+
 .Part2-Para-Container {
-  display: grid;
-  justify-content: center;
-  color: white;
-  background: rgb(18, 17, 22);
+  max-width: 800px;
+  margin: 0 auto 3rem;
+  text-align: center;
 }
+
 .Part2-Para {
-  margin-left: 10rem;
-  margin-right: 10rem;
+  line-height: 1.6;
 }
 
 .Globe-Container {
-  margin-top: -8rem;
+  margin: 0 auto;
+  height: 500px;
+  max-width: 900px;
 }
 
 .Part3ServicesContainer {
-  margin-top: 6rem;
+  padding: 3rem 0 6rem;
   color: white;
 }
+
+.Part3ServicesContainer h2 {
+  text-align: center;
+  margin-bottom: 3rem;
+  color: rgb(232, 248, 3);
+  font-size: 2rem;
+}
+
 .ServicesContainer {
-  margin-top: 1rem;
   display: flex;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 15rem;
-  color: white;
   justify-content: center;
+  gap: 5rem;
+  flex-wrap: wrap;
+  max-width: 1000px;
+  margin: 0 auto;
 }
+
 .Car-Serivce {
-  margin-top: 1rem;
-  display: grid;
-  grid-column: 1fr 1fr;
-  justify-content: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  transition: transform 0.3s ease;
+  width: 150px;
 }
+
+.Car-Serivce:hover {
+  transform: translateY(-10px);
+}
+
 .Car-Serivce-img {
   width: 100px;
   height: 100px;
+  margin-bottom: 1.5rem;
+  transition: transform 0.3s ease;
+  filter: invert(92%) sepia(82%) saturate(676%) hue-rotate(13deg)
+    brightness(103%) contrast(103%);
 }
+
 .Car-Serivce-text {
-  margin-top: -1rem;
-}
-.Car-Serivce-img:hover {
-  transform: scale(1.2);
+  font-weight: 500;
+  font-size: 1.1rem;
+  color: white;
 }
 
 .Part4ContactContainer {
   height: 3rem;
 }
 
-/* Add these new styles for the updated home page layout */
+/* Home Content Section Styles */
 .Home-Content {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 2rem;
+  padding: 4rem 0;
   color: white;
 }
 
 .Home-Content-Left {
   flex: 1;
-  padding: 2rem;
-  display: flex;
-  flex-direction: column;
-  gap: 2rem;
+  max-width: 600px;
 }
 
 .Home-Content-Left h1 {
-  font-size: 3rem;
-  margin-bottom: 1rem;
+  font-size: 3.5rem;
+  margin-bottom: 1.5rem;
   color: rgb(232, 248, 3);
 }
 
 .Home-Content-Left p {
   font-size: 1.2rem;
   line-height: 1.6;
-  margin-bottom: 2rem;
+  margin-bottom: 2.5rem;
 }
 
 .Home-Content-Right {
   flex: 1;
   display: flex;
-  justify-content: center;
+  justify-content: flex-end;
   align-items: center;
 }
 
 .home-buttons {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 2rem;
 }
 
 .driver-section,
 .client-section {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.8rem;
 }
 
 .driver-section h3,
 .client-section h3 {
   font-size: 1.3rem;
-  margin-bottom: 0.5rem;
   color: rgb(232, 248, 3);
 }
 
@@ -226,11 +245,19 @@
   color: rgb(232, 248, 3);
 }
 
-/* Media queries for responsiveness */
+/* Media Queries */
 @media (max-width: 1200px) {
+  .Home-Content {
+    padding: 3rem 0;
+  }
+
+  .Home-Content-Left h1 {
+    font-size: 3rem;
+  }
+
   .HomeCar-Image {
     width: 500px;
-    height: auto;
+    height: 350px;
   }
 }
 
@@ -238,38 +265,60 @@
   .Home-Content {
     flex-direction: column;
     text-align: center;
+    gap: 3rem;
   }
 
   .Home-Content-Left {
     order: 2;
+    max-width: 100%;
   }
 
   .Home-Content-Right {
     order: 1;
-    margin-bottom: 2rem;
-  }
-
-  .HomeCar-Image {
-    width: 400px;
+    justify-content: center;
   }
 
   .button-group {
     justify-content: center;
+  }
+
+  .Part2-Para-Container {
+    padding: 0 2rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .HomeCar-Image {
+    width: 400px;
+    height: 300px;
+  }
+
+  .ServicesContainer {
+    gap: 2rem;
   }
 }
 
 @media (max-width: 576px) {
   .HomeCar-Image {
     width: 300px;
+    height: 250px;
   }
 
   .button-group {
     flex-direction: column;
-    align-items: center;
+    gap: 1rem;
+  }
+
+  .Home-Content-Left h1 {
+    font-size: 2.5rem;
   }
 
   .Home-Button {
     width: 100%;
     text-align: center;
+  }
+
+  .Part2-Para {
+    padding: 0 1rem;
   }
 }

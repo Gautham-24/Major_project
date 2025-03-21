@@ -128,7 +128,7 @@ function ClientLogin() {
             {errorMessage && <p className="error-message">{errorMessage}</p>}
             <div className="registration-link">
               <p>
-                New to ChainRide?{" "}
+                New to RideApp?{" "}
                 <a href="/ClientRegistration">Register as a Rider</a>
               </p>
             </div>
