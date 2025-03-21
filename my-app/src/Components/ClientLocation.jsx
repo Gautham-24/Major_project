@@ -775,19 +775,21 @@ function ClientLocation() {
   const fetchMyRides = async () => {
     try {
       setIsLoading(true);
-      const clientId = localStorage.getItem("clientId");
       const metaAccount = localStorage.getItem("metaAccount");
 
-      if (!clientId || !metaAccount) {
-        console.error("Client ID or metaAccount not found in localStorage");
+      if (!metaAccount) {
+        console.error("MetaAccount not found in localStorage");
+        setIsLoading(false);
         return;
       }
 
-      console.log(`[fetchMyRides] Getting rides for client ID ${clientId}`);
+      console.log(
+        `[fetchMyRides] Getting rides for client with account ${metaAccount}`
+      );
 
-      // Get client rides from the server
+      // Get client rides from the server using the new endpoint
       const response = await axios.get(
-        `http://localhost:8080/api/rides/client/${clientId}`
+        `http://localhost:8080/api/client-rides/${metaAccount}`
       );
 
       console.log("[fetchMyRides] Response:", response.data);
@@ -803,43 +805,54 @@ function ClientLocation() {
           return;
         }
 
-        // Process the rides to add additional information
-        const processedRides = ridesData.map((ride) => {
-          // Create a display status based on ride status and client role
-          let displayStatus = ride.status;
+        // Process the rides to add formatted dates and check payment status
+        const processedRides = await Promise.all(
+          ridesData.map(async (ride) => {
+            // For completed rides, check payment status
+            let paymentRequired = false;
+            let isPaid = true;
 
-          if (ride.isPassenger) {
-            if (ride.status === "active") {
-              displayStatus = "Ride Confirmed - Waiting to Start";
-            } else if (ride.status === "in_progress") {
-              displayStatus = "Ride In Progress";
-            } else if (ride.status === "completed") {
-              displayStatus = "Ride Completed";
-            }
-          } else if (ride.hasRequest) {
-            if (ride.requestStatus === "pending") {
-              displayStatus = "Request Pending";
-            } else if (ride.requestStatus === "accepted") {
-              displayStatus = "Request Accepted";
-            } else if (ride.requestStatus === "rejected") {
-              displayStatus = "Request Rejected";
-            }
-          }
+            if (ride.status === "completed") {
+              try {
+                // Get client ID
+                const clientId = localStorage.getItem("clientId");
+                if (clientId) {
+                  // Check payment status
+                  const paymentStatusResponse = await axios.get(
+                    `http://localhost:8080/api/rides/${ride.rideId}/payment-status/${clientId}`
+                  );
 
-          // Return the processed ride with display status
-          return {
-            ...ride,
-            id: ride.rideId || ride.id,
-            displayStatus,
-            // Format dates for display
-            departureDate: new Date(
-              parseInt(ride.departureTime) * 1000
-            ).toLocaleDateString(),
-            departureTime: new Date(
-              parseInt(ride.departureTime) * 1000
-            ).toLocaleTimeString(),
-          };
-        });
+                  if (paymentStatusResponse.data) {
+                    isPaid = paymentStatusResponse.data.paid === true;
+                    paymentRequired = !isPaid;
+                  }
+                }
+              } catch (err) {
+                console.log(
+                  `Error checking payment for ride ${ride.rideId}:`,
+                  err
+                );
+                // If error, assume payment is required
+                paymentRequired = true;
+                isPaid = false;
+              }
+            }
+
+            return {
+              ...ride,
+              id: ride.rideId || ride.id,
+              // Format dates for display
+              departureDate: new Date(
+                parseInt(ride.departureTime) * 1000
+              ).toLocaleDateString(),
+              departureTime: new Date(
+                parseInt(ride.departureTime) * 1000
+              ).toLocaleTimeString(),
+              paymentPending: paymentRequired,
+              isPaid: isPaid,
+            };
+          })
+        );
 
         console.log("[fetchMyRides] Processed rides:", processedRides);
         setMyRides(processedRides);
@@ -855,22 +868,110 @@ function ClientLocation() {
     }
   };
 
+  // Update the renderRideStatus function
+  const renderRideStatus = (ride) => {
+    // First priority: Payment status for completed rides
+    if (ride.status === "completed") {
+      if (ride.paymentPending) {
+        return (
+          <span className="ride-status payment-pending">Payment Required</span>
+        );
+      } else if (ride.isPaid) {
+        return (
+          <span className="ride-status completed">Ride Completed & Paid</span>
+        );
+      }
+      return <span className="ride-status completed">Ride Completed</span>;
+    }
+
+    // Second priority: Active ride status
+    if (ride.status === "active") {
+      if (ride.isPassenger) {
+        return <span className="ride-status confirmed">Ride Confirmed</span>;
+      }
+      return <span className="ride-status active">Ride Active</span>;
+    }
+
+    // Third priority: In-progress rides
+    if (ride.status === "in_progress") {
+      return <span className="ride-status in-progress">Ride In Progress</span>;
+    }
+
+    // Fourth priority: Request status
+    if (ride.hasRequest || ride.requestStatus) {
+      if (ride.requestStatus === "pending") {
+        return <span className="ride-status pending">Request Pending</span>;
+      } else if (ride.requestStatus === "accepted") {
+        return <span className="ride-status accepted">Request Accepted</span>;
+      } else if (ride.requestStatus === "rejected") {
+        return <span className="ride-status rejected">Request Rejected</span>;
+      }
+    }
+
+    // Default: Just display the status
+    return (
+      <span className="ride-status">{ride.displayStatus || ride.status}</span>
+    );
+  };
+
+  // Add UI toggle functions
+  const showAvailableRides = () => {
+    setShowRidesList(true);
+    setShowMyRides(false);
+    fetchAvailableRides();
+  };
+
+  const showClientRides = () => {
+    setShowRidesList(false);
+    setShowMyRides(true);
+    fetchMyRides();
+  };
+
+  // Add this function to poll for ride status changes more frequently when a ride is in progress
+  useEffect(() => {
+    // Only set up polling if we have at least one ride in "in_progress" status
+    const hasInProgressRide = myRides.some(
+      (ride) => ride.status === "in_progress"
+    );
+
+    if (hasInProgressRide && showMyRides) {
+      console.log("Setting up frequent polling for in-progress rides");
+
+      // Poll every 5 seconds for in-progress rides
+      const statusInterval = setInterval(() => {
+        fetchMyRides();
+      }, 5000);
+
+      return () => clearInterval(statusInterval);
+    }
+  }, [myRides, showMyRides]);
+
+  // Add this logic to the render method to clearly show "No rides" message when appropriate
+  {
+    showMyRides && myRides.length === 0 && (
+      <div className="no-rides-message">
+        <p>You don't have any rides yet. Check available rides to book one!</p>
+      </div>
+    );
+  }
+
   // Update the existing checkPaymentStatus function
   const checkPaymentStatus = async (rideId, clientId) => {
     try {
-      const response = await fetch(
+      const response = await axios.get(
         `http://localhost:8080/api/rides/${rideId}/payment-status/${clientId}`
       );
-      const data = await response.json();
 
-      if (data.success) {
+      if (response.data) {
         setPaymentStatus((prev) => ({
           ...prev,
-          [rideId]: data,
+          [rideId]: response.data,
         }));
+        return response.data;
       }
     } catch (error) {
       console.error("Error checking payment status:", error);
+      return { paid: false, status: "error" };
     }
   };
 
@@ -896,6 +997,27 @@ function ClientLocation() {
 
     return () => clearInterval(myRidesInterval);
   }, [showMyRides]);
+
+  // Update useEffect to check payment status for completed rides
+  useEffect(() => {
+    if (myRides.length > 0) {
+      const completedRides = myRides.filter(
+        (ride) => ride.status === "completed" && !ride.isPaid
+      );
+
+      if (completedRides.length > 0) {
+        console.log(
+          `Checking payment status for ${completedRides.length} completed rides`
+        );
+        const clientId = localStorage.getItem("clientId");
+        if (clientId) {
+          completedRides.forEach((ride) => {
+            checkPaymentStatus(ride.rideId, clientId);
+          });
+        }
+      }
+    }
+  }, [myRides]);
 
   // After making a ride request, update statuses more aggressively
   // to show the pending status immediately
@@ -1010,217 +1132,92 @@ function ClientLocation() {
         return;
       }
 
-      // Confirm the payment with the user
-      const confirmPay = window.confirm(
-        `Are you sure you want to pay ${ride.price} ETH for this ride?`
-      );
-
-      if (!confirmPay) {
-        setIsLoading(false);
-        return;
-      }
-
-      console.log(
-        `Processing payment for ride ${ride.rideId} by client with account ${metaAccount}`
-      );
-      // Request the payment using the blockchain service
-      const response = await axios.post(
-        `http://localhost:8080/api/rides/${ride.rideId}/confirm`,
-        {
-          clientMetaAccount: metaAccount,
-          price: ride.price,
-        }
-      );
-
-      if (response.data.success) {
-        alert("Payment successful! Thank you for using ChainRide.");
-        // Update payment status locally
-        setPaymentStatus((prev) => ({
-          ...prev,
-          [ride.rideId]: { paid: true, status: "completed" },
-        }));
-        // Refresh the rides list
-        await fetchMyRides();
-      } else {
-        alert("Payment failed: " + (response.data.message || "Unknown error"));
-      }
-    } catch (error) {
-      console.error("Error making payment:", error);
-      alert(
-        "Error making payment: " +
-          (error.response?.data?.message || error.message)
-      );
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Function to fetch client rides
-  const fetchClientRides = async (metaAccount) => {
-    try {
-      console.log(
-        `[fetchClientRides] Fetching rides for account: ${metaAccount}`
-      );
-
-      if (!metaAccount) {
-        console.error("[fetchClientRides] No MetaMask account provided");
-        return;
-      }
-
-      const response = await fetch(
-        `/api/client-rides?metaAccount=${metaAccount}`
-      );
-      const data = await response.json();
-
-      if (response.ok) {
-        console.log("[fetchClientRides] Client rides:", data.rides);
-        setMyRides(data.rides || []);
-      } else {
-        console.error(
-          "[fetchClientRides] Error fetching client rides:",
-          data.message
-        );
-        toast.error(`Failed to load your rides: ${data.message}`);
-      }
-    } catch (error) {
-      console.error("[fetchClientRides] Error:", error);
-      toast.error("Failed to fetch your rides");
-    }
-  };
-
-  useEffect(() => {
-    // Initialize
-    const init = async () => {
+      // First verify that this ride is eligible for payment
+      console.log(`Verifying payment eligibility for ride ${ride.rideId}...`);
       try {
-        setLoading(true);
+        const verifyResponse = await axios.get(
+          `http://localhost:8080/api/rides/${ride.rideId}/verify-payment/${metaAccount}`
+        );
 
-        // Check if MetaMask is available
-        if (!window.ethereum) {
-          toast.error("MetaMask is not installed");
-          setLoading(false);
+        // Check if payment is needed
+        if (!verifyResponse.data.canPay) {
+          alert("This ride has already been paid for.");
+          setIsLoading(false);
+          await fetchMyRides(); // Refresh rides to update UI
           return;
         }
 
-        // Get MetaMask account
-        const accounts = await window.ethereum.request({
-          method: "eth_requestAccounts",
-        });
-        const metaAccount = accounts[0];
+        // Use the price from the verification if available, otherwise use the one from the ride
+        const price = verifyResponse.data.rideDetails?.price || ride.price;
+        console.log(`Verified price for payment: ${price} ETH`);
 
-        console.log(`[ClientLocation] Using MetaMask account: ${metaAccount}`);
-
-        // Fetch available rides and client rides
-        await fetchAvailableRides();
-        await fetchClientRides(metaAccount);
-
-        // Setup MetaMask account change listener
-        window.ethereum.on("accountsChanged", (accounts) => {
-          console.log(
-            "[ClientLocation] MetaMask account changed:",
-            accounts[0]
-          );
-          fetchClientRides(accounts[0]);
-        });
-      } catch (error) {
-        console.error("[ClientLocation] Initialization error:", error);
-        toast.error(`Error: ${error.message}`);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    init();
-
-    // Cleanup
-    return () => {
-      if (window.ethereum) {
-        window.ethereum.removeListener("accountsChanged", () => {});
-      }
-    };
-  }, []);
-
-  // Update useEffect to check payment status for payment pending rides
-  useEffect(() => {
-    const interval = setInterval(() => {
-      myRides.forEach((ride) => {
-        if (ride.status === "payment_pending") {
-          checkPaymentStatus(ride.rideId, ride.clientId);
-        }
-      });
-    }, 5000); // Check every 5 seconds
-
-    return () => clearInterval(interval);
-  }, [myRides]);
-
-  // Update the renderRideStatus function
-  const renderRideStatus = (ride) => {
-    if (ride.isPassenger) {
-      if (ride.status === "active") {
-        return <span className="ride-status confirmed">Ride Confirmed</span>;
-      } else if (ride.status === "in_progress") {
-        return (
-          <span className="ride-status in-progress">Ride In Progress</span>
+        // Confirm the payment with the user
+        const confirmPay = window.confirm(
+          `Are you sure you want to pay ${price} ETH for this ride?`
         );
-      } else if (ride.status === "completed") {
-        return <span className="ride-status completed">Ride Completed</span>;
+
+        if (!confirmPay) {
+          setIsLoading(false);
+          return;
+        }
+
+        console.log(
+          `Processing payment for ride ${ride.rideId} by client with account ${metaAccount}`
+        );
+
+        // Request the payment using the blockchain service
+        const response = await axios.post(
+          `http://localhost:8080/api/rides/${ride.rideId}/confirm`,
+          {
+            clientMetaAccount: metaAccount,
+            price: price,
+          }
+        );
+
+        // Check for success based on new API format
+        if (response.status === 200) {
+          const txHash = response.data.transactionHash || "local";
+          alert(`Payment successful! Transaction: ${txHash}`);
+
+          // Update payment status locally
+          setPaymentStatus((prev) => ({
+            ...prev,
+            [ride.rideId]: { paid: true, status: "completed" },
+          }));
+
+          // Refresh the rides list
+          await fetchMyRides();
+        } else {
+          alert("Payment failed: " + (response.data.error || "Unknown error"));
+        }
+      } catch (verifyError) {
+        console.error("Error verifying payment eligibility:", verifyError);
+
+        // Handle specific verification errors
+        if (verifyError.response) {
+          const errorMessage =
+            verifyError.response.data.error || "Unknown error";
+          alert(`Cannot process payment: ${errorMessage}`);
+        } else {
+          alert(`Error verifying payment: ${verifyError.message}`);
+        }
       }
+
+      setIsLoading(false);
+    } catch (error) {
+      console.error("Error making payment:", error);
+
+      // Enhanced error handling
+      const errorMessage =
+        error.response?.data?.error ||
+        error.response?.data?.message ||
+        error.message ||
+        "Unknown error occurred";
+
+      alert("Error making payment: " + errorMessage);
+      setIsLoading(false);
     }
-
-    if (ride.hasRequest) {
-      if (ride.requestStatus === "pending") {
-        return <span className="ride-status pending">Request Pending</span>;
-      } else if (ride.requestStatus === "accepted") {
-        return <span className="ride-status accepted">Request Accepted</span>;
-      } else if (ride.requestStatus === "rejected") {
-        return <span className="ride-status rejected">Request Rejected</span>;
-      }
-    }
-
-    return (
-      <span className="ride-status">{ride.displayStatus || ride.status}</span>
-    );
   };
-
-  // Add UI toggle functions
-  const showAvailableRides = () => {
-    setShowRidesList(true);
-    setShowMyRides(false);
-    fetchAvailableRides();
-  };
-
-  const showClientRides = () => {
-    setShowRidesList(false);
-    setShowMyRides(true);
-    fetchMyRides();
-  };
-
-  // Add this function to poll for ride status changes more frequently when a ride is in progress
-  useEffect(() => {
-    // Only set up polling if we have at least one ride in "in_progress" status
-    const hasInProgressRide = myRides.some(
-      (ride) => ride.status === "in_progress"
-    );
-
-    if (hasInProgressRide && showMyRides) {
-      console.log("Setting up frequent polling for in-progress rides");
-
-      // Poll every 5 seconds for in-progress rides
-      const statusInterval = setInterval(() => {
-        fetchMyRides();
-      }, 5000);
-
-      return () => clearInterval(statusInterval);
-    }
-  }, [myRides, showMyRides]);
-
-  // Add this logic to the render method to clearly show "No rides" message when appropriate
-  {
-    showMyRides && myRides.length === 0 && (
-      <div className="no-rides-message">
-        <p>You don't have any rides yet. Check available rides to book one!</p>
-      </div>
-    );
-  }
 
   return (
     <>
@@ -1393,12 +1390,14 @@ function ClientLocation() {
                       </p>
                       <p>
                         <strong>Departure:</strong>{" "}
-                        {new Date(ride.departureTime).toLocaleString()}
+                        {new Date(
+                          parseInt(ride.departureTime) * 1000
+                        ).toLocaleString()}
                       </p>
                     </div>
 
                     {/* Show payment button for rides with pending payment */}
-                    {ride.paymentPending && (
+                    {ride.status === "completed" && ride.paymentPending && (
                       <button
                         className="payment-button"
                         onClick={(e) => {
@@ -1407,8 +1406,17 @@ function ClientLocation() {
                         }}
                         disabled={isLoading}
                       >
-                        Make Payment ({ride.price} ETH)
+                        {isLoading
+                          ? "Processing..."
+                          : `Make Payment (${ride.price} ETH)`}
                       </button>
+                    )}
+
+                    {/* Show paid status for completed and paid rides */}
+                    {ride.status === "completed" && ride.isPaid && (
+                      <div className="payment-status paid">
+                        Payment Complete
+                      </div>
                     )}
 
                     {/* Show cancel button for rides with pending status */}

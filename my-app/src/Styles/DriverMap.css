@@ -700,3 +700,17 @@
 .complete-ride-button:hover {
   background-color: #c0392b;
 }
+
+.request-rejected-message {
+  color: #e74c3c;
+  font-style: italic;
+  text-align: center;
+  padding: 8px 0;
+}
+
+.request-accepted-message {
+  color: #2ecc71;
+  font-style: italic;
+  text-align: center;
+  padding: 8px 0;
+}

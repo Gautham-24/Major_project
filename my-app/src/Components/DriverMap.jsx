@@ -1292,17 +1292,9 @@ function DriverMap() {
                       )}
 
                       {request.status === "accepted" && (
-                        <button
-                          className="complete-button"
-                          onClick={() =>
-                            completeRideForPassenger(
-                              selectedRide.rideId,
-                              request.clientId
-                            )
-                          }
-                        >
-                          Complete
-                        </button>
+                        <p className="request-accepted-message">
+                          Ride request accepted
+                        </p>
                       )}
 
                       {request.status === "rejected" && (

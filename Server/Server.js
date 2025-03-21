@@ -762,32 +762,103 @@ app.post("/api/rides/:rideId/confirm", async (req, res) => {
     const { rideId } = req.params;
     const { clientMetaAccount, price } = req.body;
 
-    if (!rideId || !clientMetaAccount || price === undefined) {
-      return res.status(400).json({
-        success: false,
-        message: "rideId, clientMetaAccount, and price are required",
+    if (!rideId || !clientMetaAccount || !price) {
+      console.log("Missing required fields:", {
+        rideId,
+        clientMetaAccount,
+        price,
       });
+      return res.status(400).json({ error: "Missing required fields" });
     }
 
-    // Confirm ride and make payment on blockchain
-    const result = await blockchainService.confirmRide(
-      clientMetaAccount,
-      rideId,
-      price
-    );
+    console.log("Payment request:", { rideId, clientMetaAccount, price });
 
-    if (result.success) {
-      res.status(200).json({ success: true });
-    } else {
-      res.status(400).json({ success: false, message: result.error });
+    // First verify payment eligibility
+    try {
+      // Get the client ID associated with the account
+      const clientId = await blockchainService.getClientIdByAccount(
+        clientMetaAccount
+      );
+      if (!clientId) {
+        console.log(`Client with meta account ${clientMetaAccount} not found`);
+        return res.status(404).json({ error: "Client not found" });
+      }
+
+      console.log(
+        `Found client ID: ${clientId} for meta account: ${clientMetaAccount}`
+      );
+
+      // Get the ride
+      const ride = await blockchainService.getRide(rideId);
+      if (!ride) {
+        console.log(`Ride ${rideId} not found`);
+        return res.status(404).json({ error: "Ride not found" });
+      }
+
+      console.log("Ride found:", ride);
+
+      // Check if the ride is completed
+      if (ride.status !== "completed") {
+        console.log(
+          `Ride ${rideId} is not completed, current status: ${ride.status}`
+        );
+        return res.status(400).json({ error: "Ride is not completed" });
+      }
+
+      // Check if the client is a passenger on the ride
+      const isPassenger = await blockchainService.isClientPassengerOfRide(
+        clientId,
+        rideId
+      );
+      if (!isPassenger) {
+        console.log(`Client ${clientId} is not a passenger on ride ${rideId}`);
+        return res
+          .status(403)
+          .json({ error: "Client is not a passenger on this ride" });
+      }
+
+      // Check if payment has already been made
+      const paymentStatus = await blockchainService.checkPaymentStatus(
+        rideId,
+        clientId
+      );
+      if (paymentStatus.paid) {
+        console.log(
+          `Ride ${rideId} has already been paid for by client ${clientId}`
+        );
+        return res
+          .status(400)
+          .json({ error: "This ride has already been paid for" });
+      }
+
+      // Process the payment
+      const result = await blockchainService.confirmRide(
+        clientMetaAccount,
+        rideId,
+        price
+      );
+
+      if (result.success) {
+        console.log("Payment successful:", result);
+        return res.status(200).json({
+          message: "Payment processed successfully",
+          transactionHash: result.transactionHash,
+        });
+      } else {
+        console.log("Payment failed:", result);
+        return res
+          .status(400)
+          .json({ error: result.error || "Payment failed" });
+      }
+    } catch (verifyError) {
+      console.error("Error during payment verification:", verifyError);
+      return res
+        .status(500)
+        .json({ error: `Verification error: ${verifyError.message}` });
     }
   } catch (error) {
-    console.error("Error confirming ride and making payment:", error.message);
-    res.status(500).json({
-      success: false,
-      message: "Error confirming ride and making payment",
-      error: error.message,
-    });
+    console.error("Error processing ride payment:", error);
+    return res.status(500).json({ error: `Server error: ${error.message}` });
   }
 });
 
@@ -1386,6 +1457,155 @@ app.get("/api/rides/:rideId/passenger-count", async (req, res) => {
       success: false,
       message: "Error getting passenger count",
       error: error.message,
+    });
+  }
+});
+
+// Endpoint to get a client's rides by meta account
+app.get("/api/client-rides/:metaAccount", async (req, res) => {
+  try {
+    const { metaAccount } = req.params;
+
+    if (!metaAccount) {
+      return res
+        .status(400)
+        .json({ success: false, error: "MetaMask account is required" });
+    }
+
+    console.log(`Getting rides for client with meta account ${metaAccount}`);
+
+    // First get the client ID associated with this account
+    const clientId = await blockchainService.getClientIdByAccount(metaAccount);
+    if (!clientId) {
+      console.log(`No client found for account ${metaAccount}`);
+      return res.status(404).json({
+        success: false,
+        error: "No client found for this account",
+      });
+    }
+
+    console.log(`Found client ID: ${clientId}`);
+
+    // Get the client's rides
+    const ridesResult = await blockchainService.getClientRides(clientId);
+
+    if (!ridesResult.success) {
+      return res.status(400).json({
+        success: false,
+        error: ridesResult.error || "Could not retrieve rides",
+      });
+    }
+
+    // Get rides and enhance them with payment status information
+    const rides = ridesResult.rides || [];
+    const enhancedRides = await Promise.all(
+      rides.map(async (ride) => {
+        try {
+          // Check payment status for completed rides
+          let paymentInfo = { paid: false, status: "unknown" };
+          if (ride.status === "completed") {
+            paymentInfo = await blockchainService.checkPaymentStatus(
+              ride.rideId,
+              clientId
+            );
+          }
+
+          return {
+            ...ride,
+            paymentPending: ride.status === "completed" && !paymentInfo.paid,
+            isPaid: paymentInfo.paid,
+          };
+        } catch (err) {
+          console.error(`Error enhancing ride ${ride.rideId}:`, err);
+          return ride;
+        }
+      })
+    );
+
+    return res.status(200).json({
+      success: true,
+      rides: enhancedRides,
+      clientId,
+    });
+  } catch (error) {
+    console.error("Error getting client rides:", error);
+    return res.status(500).json({
+      success: false,
+      error: `Server error: ${error.message}`,
+    });
+  }
+});
+
+// API to verify if client can make payment for a ride
+app.get("/api/rides/:rideId/verify-payment/:metaAccount", async (req, res) => {
+  try {
+    const { rideId, metaAccount } = req.params;
+
+    if (!rideId || !metaAccount) {
+      return res.status(400).json({
+        error: "Missing required parameters",
+      });
+    }
+
+    console.log(
+      `Verifying payment eligibility for ride ${rideId} and account ${metaAccount}`
+    );
+
+    // Get the client ID for the account
+    const clientId = await blockchainService.getClientIdByAccount(metaAccount);
+    if (!clientId) {
+      return res.status(404).json({
+        error: "Client not found for the provided account",
+      });
+    }
+
+    // Check if the ride exists and is completed
+    const ride = await blockchainService.getRide(rideId);
+    if (!ride) {
+      return res.status(404).json({
+        error: "Ride not found",
+      });
+    }
+
+    if (ride.status !== "completed") {
+      return res.status(400).json({
+        error: "Ride is not completed yet",
+        status: ride.status,
+      });
+    }
+
+    // Check if client is a passenger
+    const isPassenger = await blockchainService.isClientPassengerOfRide(
+      clientId,
+      rideId
+    );
+
+    if (!isPassenger) {
+      return res.status(403).json({
+        error: "You are not a passenger of this ride",
+      });
+    }
+
+    // Check payment status
+    const paymentStatus = await blockchainService.checkPaymentStatus(
+      rideId,
+      clientId
+    );
+
+    return res.status(200).json({
+      canPay: !paymentStatus.paid,
+      paymentStatus,
+      rideDetails: {
+        rideId: ride.id,
+        price: blockchainService.web3.utils.fromWei(ride.price, "ether"),
+        driverId: ride.driverId,
+        status: ride.status,
+      },
+    });
+  } catch (error) {
+    console.error("Error verifying payment eligibility:", error);
+    return res.status(500).json({
+      error: `Server error: ${error.message}`,
     });
   }
 });
