@@ -43,7 +43,7 @@ function DriverLogin() {
               );
               localStorage.setItem("metaAccount", accounts[0]);
               setIsConnecting(false);
-              navigate("/DriverMap");
+              navigate("/DriverDashboard");
               return;
             }
           } catch (error) {
@@ -77,8 +77,8 @@ function DriverLogin() {
             console.log("Response from backend:", response.data);
             connected = true;
             setIsConnecting(false);
-            // Navigate to /DriverMap after a successful response
-            navigate("/DriverMap");
+            // Navigate to /DriverDashboard after a successful response
+            navigate("/DriverDashboard");
           } catch (error) {
             console.error(`Error connecting to ${SERVER_URLS[0]}:`, error);
             lastError = error;

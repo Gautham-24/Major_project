@@ -1,6 +1,6 @@
 /* global google */
 import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
   APIProvider,
   Map,
@@ -15,9 +15,22 @@ import "../Styles/DriverMap.css";
 import Logo from "../Assets/Images/Logo.png";
 import Web3 from "web3";
 import ChainRideContract from "../Contracts/ChainRideContract.json";
+import {
+  FaUser,
+  FaTachometerAlt,
+  FaCarAlt,
+  FaClipboardList,
+  FaSignOutAlt,
+  FaWallet,
+  FaMapMarkedAlt,
+  FaArrowLeft,
+  FaLocationArrow,
+} from "react-icons/fa";
 
 function DriverMap() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [viewParam, setViewParam] = useState(null);
   const [currentPosition, setCurrentPosition] = useState(null);
   const [driverId, setDriverId] = useState(null);
   const [distance, setDistance] = useState(null);
@@ -54,6 +67,25 @@ function DriverMap() {
   const [startLocationName, setStartLocationName] = useState("");
   const [pickupPoint, setPickupPoint] = useState("");
   const [pickupLocation, setPickupLocation] = useState(null);
+  const [driverData, setDriverData] = useState(null);
+
+  // This useEffect will run when the component mounts and when the URL changes
+  useEffect(() => {
+    // Parse the URL search params to get the view parameter
+    const queryParams = new URLSearchParams(location.search);
+    const view = queryParams.get("view");
+
+    if (view) {
+      setViewParam(view);
+      if (view === "post") {
+        setShowPostRideForm(true);
+        setSelectedRide(null);
+      } else if (view === "rides") {
+        setShowPostRideForm(false);
+        fetchMyRides();
+      }
+    }
+  }, [location.search]);
 
   const connectToMetaMask = async () => {
     try {
@@ -485,6 +517,9 @@ function DriverMap() {
           alert("Please connect your MetaMask account to continue");
           return;
         }
+
+        // Fetch driver data for header
+        await fetchDriverData(account);
 
         // Check if driver is registered
         const isRegistered = await checkDriverRegistration(account);
@@ -1005,363 +1040,485 @@ function DriverMap() {
       .catch((err) => console.error("Error getting address:", err));
   };
 
+  // Function to fetch driver data for the header
+  const fetchDriverData = async (metaAccount) => {
+    try {
+      const response = await axios.get(
+        `http://localhost:8080/api/driver-by-account/${metaAccount}`,
+        { withCredentials: true }
+      );
+
+      if (response.data.success && response.data.driver) {
+        setDriverData(response.data.driver);
+      }
+    } catch (error) {
+      console.error("Error fetching driver data:", error);
+    }
+  };
+
+  // New handleLogout function
+  const handleLogout = () => {
+    localStorage.removeItem("driverId");
+    localStorage.removeItem("metaAccount");
+    navigate("/DriverLogin");
+  };
+
   return (
-    <>
-      <div className={`DriverMap-MainContainer ${showMap ? "show-map" : ""}`}>
-        <div className="DriverControlsContainer">
-          <div className="driver-controls">
+    <div className="driver-map-wrapper">
+      {/* Header similar to dashboard */}
+      <div className="dashboard-header">
+        <div className="dashboard-logo">
+          <h1>RideApp</h1>
+        </div>
+        <div className="dashboard-user">
+          {driverData && (
+            <>
+              <span className="user-greeting">
+                Hello, {driverData.name || "Driver"}
+              </span>
+              <div
+                className="user-avatar"
+                onClick={() => navigate("/DriverDashboard")}
+              >
+                {driverData?.name
+                  ? driverData.name.charAt(0).toUpperCase()
+                  : "D"}
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+
+      <div className="driver-map-container">
+        {/* Left sidebar for navigation */}
+        <div className="driver-map-sidebar">
+          <div className="sidebar-section">
             <button
-              className="post-ride-button"
+              className={`sidebar-button ${showPostRideForm ? "active" : ""}`}
               onClick={() => {
                 setShowPostRideForm(true);
                 setSelectedRide(null);
+                navigate("/DriverMap?view=post", { replace: true });
               }}
             >
-              Post a Ride
+              <FaCarAlt className="button-icon" />
+              <span>Post a Ride</span>
             </button>
 
             <button
-              className="my-rides-button"
+              className={`sidebar-button ${!showPostRideForm ? "active" : ""}`}
               onClick={() => {
                 setShowPostRideForm(false);
                 fetchMyRides();
+                navigate("/DriverMap?view=rides", { replace: true });
               }}
             >
-              My Rides
+              <FaClipboardList className="button-icon" />
+              <span>My Rides</span>
             </button>
 
-            <button className="toggle-map-button" onClick={toggleMap}>
-              {showMap ? "Hide Map" : "Show Map"}
+            <button
+              className={`sidebar-button ${showMap ? "active" : ""}`}
+              onClick={toggleMap}
+            >
+              <FaMapMarkedAlt className="button-icon" />
+              <span>{showMap ? "Hide Map" : "Show Map"}</span>
             </button>
           </div>
 
-          {/* Post Ride Form - Always visible by default */}
-          {showPostRideForm && (
-            <div className="post-ride-form">
-              <h3>Post a New Ride</h3>
+          <div className="sidebar-section">
+            <button
+              className="sidebar-button back-button"
+              onClick={() => navigate("/DriverDashboard")}
+            >
+              <FaArrowLeft className="button-icon" />
+              <span>Back to Dashboard</span>
+            </button>
 
-              {/* Form groups for location inputs */}
-              <div className="form-group">
-                <label>From (Start Location):</label>
-                <div className="location-input-container">
-                  <input
-                    type="text"
-                    value={startLocationName}
-                    onChange={(e) => setStartLocationName(e.target.value)}
-                    placeholder="Enter start location"
-                  />
+            <button
+              className="sidebar-button logout-button"
+              onClick={handleLogout}
+            >
+              <FaSignOutAlt className="button-icon" />
+              <span>Logout</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Main content */}
+        <div className="driver-map-main">
+          {/* Your existing content, but remove the driver controls */}
+          <div className={`driver-map-content ${showMap ? "with-map" : ""}`}>
+            {/* Post Ride Form - Always visible by default */}
+            {showPostRideForm && (
+              <div className="post-ride-form">
+                <h3>Post a New Ride</h3>
+
+                <div className="form-section-title">
+                  <FaLocationArrow className="form-section-icon" />
+                  <span>Route Information</span>
                 </div>
-              </div>
 
-              <div className="form-group">
-                <label>To (Destination):</label>
-                <div className="location-input-container">
-                  <input
-                    type="text"
-                    value={destinationName}
-                    onChange={(e) => setDestinationName(e.target.value)}
-                    placeholder="Enter destination address or name"
-                  />
-                  <small className="form-hint">
-                    Enter destination manually or use the map
-                  </small>
+                <div className="form-group">
+                  <label>From (Start Location):</label>
+                  <div className="location-input-container">
+                    <input
+                      type="text"
+                      value={startLocationName}
+                      onChange={(e) => setStartLocationName(e.target.value)}
+                      placeholder="Enter start location"
+                    />
+                    {currentPosition && (
+                      <div className="current-location-tag">
+                        <FaLocationArrow className="location-icon" />
+                        <span>Current Location</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
 
-              <div className="form-group">
-                <label>Pickup Point:</label>
-                <div className="location-input-container">
-                  <input
-                    type="text"
-                    value={pickupPoint}
-                    onChange={(e) => setPickupPoint(e.target.value)}
-                    placeholder="Enter pickup point (if different from start)"
-                  />
-                  {showMap && (
+                <div className="form-group">
+                  <label>To (Destination):</label>
+                  <div className="location-input-container">
+                    <input
+                      type="text"
+                      value={destinationName}
+                      onChange={(e) => setDestinationName(e.target.value)}
+                      placeholder="Enter destination address or name"
+                    />
+                    <small className="form-hint">
+                      Enter destination manually or use the map
+                    </small>
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label>Pickup Point:</label>
+                  <div className="location-input-container">
+                    <input
+                      type="text"
+                      value={pickupPoint}
+                      onChange={(e) => setPickupPoint(e.target.value)}
+                      placeholder="Enter pickup point (if different from start)"
+                    />
                     <button
                       type="button"
-                      className="map-select-button active"
-                      onClick={() => toggleMap()}
+                      className={`map-select-button ${showMap ? "active" : ""}`}
+                      onClick={toggleMap}
                     >
-                      Select on Map
+                      <FaMapMarkedAlt />
+                      {showMap ? "Using Map" : "Select on Map"}
                     </button>
-                  )}
+                  </div>
                 </div>
-              </div>
 
-              <div className="form-group">
-                <label>Price (ETH):</label>
-                <input
-                  type="number"
-                  value={ridePrice}
-                  onChange={(e) => setRidePrice(e.target.value)}
-                  placeholder="Enter price in ETH"
-                  step="0.001"
-                  min="0"
-                />
-              </div>
+                <div className="form-section-title">
+                  <FaWallet className="form-section-icon" />
+                  <span>Ride Details</span>
+                </div>
 
-              <div className="form-group">
-                <label>Available Seats:</label>
-                <select
-                  value={availableSeats}
-                  onChange={(e) => setAvailableSeats(e.target.value)}
+                <div className="form-row">
+                  <div className="form-group half">
+                    <label>Price (ETH):</label>
+                    <input
+                      type="number"
+                      value={ridePrice}
+                      onChange={(e) => setRidePrice(e.target.value)}
+                      placeholder="Enter price in ETH"
+                      step="0.001"
+                      min="0"
+                    />
+                  </div>
+
+                  <div className="form-group half">
+                    <label>Available Seats:</label>
+                    <select
+                      value={availableSeats}
+                      onChange={(e) => setAvailableSeats(e.target.value)}
+                    >
+                      <option value="1">1</option>
+                      <option value="2">2</option>
+                      <option value="3">3</option>
+                      <option value="4">4</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label>Departure Time:</label>
+                  <input
+                    type="datetime-local"
+                    value={departureTime}
+                    onChange={(e) => setDepartureTime(e.target.value)}
+                  />
+                </div>
+
+                {!showMap && (
+                  <div className="map-toggle-prompt">
+                    <p>Need to set location on map?</p>
+                    <button className="show-map-button" onClick={toggleMap}>
+                      <FaMapMarkedAlt />
+                      Show Map
+                    </button>
+                  </div>
+                )}
+
+                {distance && duration && (
+                  <div className="route-summary">
+                    <div className="summary-item">
+                      <span className="summary-label">Distance:</span>
+                      <span className="summary-value">{distance}</span>
+                    </div>
+                    <div className="summary-item">
+                      <span className="summary-label">Duration:</span>
+                      <span className="summary-value">{duration}</span>
+                    </div>
+                  </div>
+                )}
+
+                <button
+                  className="submit-ride-button"
+                  onClick={postRide}
+                  disabled={isLoading || !destinationName}
                 >
-                  <option value="1">1</option>
-                  <option value="2">2</option>
-                  <option value="3">3</option>
-                  <option value="4">4</option>
-                </select>
-              </div>
+                  {isLoading ? (
+                    <>
+                      <span className="loading-spinner"></span>
+                      <span>Posting...</span>
+                    </>
+                  ) : (
+                    "Post Ride"
+                  )}
+                </button>
 
-              <div className="form-group">
-                <label>Departure Time:</label>
-                <input
-                  type="datetime-local"
-                  value={departureTime}
-                  onChange={(e) => setDepartureTime(e.target.value)}
-                />
+                {!destinationName && (
+                  <p className="error-message">
+                    Please enter a destination before posting.
+                  </p>
+                )}
               </div>
+            )}
 
-              {!showMap && (
-                <div className="map-toggle-prompt">
-                  <p>Need to set pickup point on map?</p>
-                  <button className="show-map-button" onClick={toggleMap}>
-                    Show Map
-                  </button>
+            {/* My Rides List */}
+            {!showPostRideForm && myRides.length > 0 && (
+              <div className="my-rides-list">
+                <h3>My Rides</h3>
+
+                <div className="rides-container">
+                  {myRides.map((ride) => (
+                    <div
+                      key={ride.rideId}
+                      className={`ride-item ${ride.status} ${
+                        selectedRide && selectedRide.rideId === ride.rideId
+                          ? "selected"
+                          : ""
+                      }`}
+                      onClick={() => handleRideSelect(ride)}
+                    >
+                      <div className="ride-header">
+                        <h4>Ride #{ride.rideId}</h4>
+                        <span className={`status ${ride.status}`}>
+                          {ride.status}
+                        </span>
+                      </div>
+
+                      <div className="ride-details">
+                        <p>
+                          <strong>From:</strong>{" "}
+                          {ride.from || ride.startLocation}
+                        </p>
+                        <p>
+                          <strong>To:</strong> {ride.to || ride.destination}
+                        </p>
+                        <p>
+                          <strong>Price:</strong> {ride.price} ETH
+                        </p>
+                        <p>
+                          <strong>Available Seats:</strong>{" "}
+                          {ride.availableSeats}
+                        </p>
+                        <p>
+                          <strong>Departure:</strong>{" "}
+                          {new Date(
+                            parseInt(ride.departureTime) * 1000
+                          ).toLocaleString()}
+                        </p>
+                        <p>
+                          <strong>Passengers:</strong>{" "}
+                          {ride.passengers
+                            ? ride.passengers.length
+                            : ride.passengerCount
+                            ? ride.passengerCount
+                            : ride.passengerIds
+                            ? ride.passengerIds.length
+                            : 0}
+                        </p>
+                        <p>
+                          <strong>Status:</strong> {ride.status}
+                        </p>
+                        {ride.status === "active" && (
+                          <button
+                            className="start-ride-button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              startRide(ride.rideId);
+                            }}
+                          >
+                            Start Ride
+                          </button>
+                        )}
+                        {ride.status === "in_progress" && (
+                          <button
+                            className="complete-ride-button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              completeRide(ride.rideId);
+                            }}
+                          >
+                            Complete Ride
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              )}
-
-              <button
-                className="submit-ride-button"
-                onClick={postRide}
-                disabled={isLoading}
-              >
-                {isLoading ? "Posting..." : "Post Ride"}
-              </button>
-
-              {!destinationName && (
-                <p className="error-message">
-                  Please enter a destination before posting.
-                </p>
-              )}
-            </div>
-          )}
-
-          {/* My Rides List */}
-          {!showPostRideForm && myRides.length > 0 && (
-            <div className="my-rides-list">
-              <h3>My Rides</h3>
-
-              <div className="rides-container">
-                {myRides.map((ride) => (
-                  <div
-                    key={ride.rideId}
-                    className={`ride-item ${ride.status} ${
-                      selectedRide && selectedRide.rideId === ride.rideId
-                        ? "selected"
-                        : ""
-                    }`}
-                    onClick={() => handleRideSelect(ride)}
-                  >
-                    <div className="ride-header">
-                      <h4>Ride #{ride.rideId}</h4>
-                      <span className={`status ${ride.status}`}>
-                        {ride.status}
-                      </span>
-                    </div>
-
-                    <div className="ride-details">
-                      <p>
-                        <strong>From:</strong> {ride.from || ride.startLocation}
-                      </p>
-                      <p>
-                        <strong>To:</strong> {ride.to || ride.destination}
-                      </p>
-                      <p>
-                        <strong>Price:</strong> {ride.price} ETH
-                      </p>
-                      <p>
-                        <strong>Available Seats:</strong> {ride.availableSeats}
-                      </p>
-                      <p>
-                        <strong>Departure:</strong>{" "}
-                        {new Date(
-                          parseInt(ride.departureTime) * 1000
-                        ).toLocaleString()}
-                      </p>
-                      <p>
-                        <strong>Passengers:</strong>{" "}
-                        {ride.passengers
-                          ? ride.passengers.length
-                          : ride.passengerCount
-                          ? ride.passengerCount
-                          : ride.passengerIds
-                          ? ride.passengerIds.length
-                          : 0}
-                      </p>
-                      <p>
-                        <strong>Status:</strong> {ride.status}
-                      </p>
-                      {ride.status === "active" && (
-                        <button
-                          className="start-ride-button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            startRide(ride.rideId);
-                          }}
-                        >
-                          Start Ride
-                        </button>
-                      )}
-                      {ride.status === "in_progress" && (
-                        <button
-                          className="complete-ride-button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            completeRide(ride.rideId);
-                          }}
-                        >
-                          Complete Ride
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                ))}
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Ride Requests */}
-          {selectedRide && rideRequests.length > 0 && (
-            <div className="ride-requests">
-              <h3>Ride Requests for Ride #{selectedRide.rideId}</h3>
+            {/* Ride Requests */}
+            {selectedRide && rideRequests.length > 0 && (
+              <div className="ride-requests">
+                <h3>Ride Requests for Ride #{selectedRide.rideId}</h3>
 
-              <div className="requests-container">
-                {rideRequests.map((request, index) => (
-                  <div key={index} className={`request-item ${request.status}`}>
-                    <div className="request-header">
-                      <h4>{request.clientName}</h4>
-                      <span className={`status ${request.status}`}>
-                        {request.status}
-                      </span>
-                    </div>
+                <div className="requests-container">
+                  {rideRequests.map((request, index) => (
+                    <div
+                      key={index}
+                      className={`request-item ${request.status}`}
+                    >
+                      <div className="request-header">
+                        <h4>{request.clientName}</h4>
+                        <span className={`status ${request.status}`}>
+                          {request.status}
+                        </span>
+                      </div>
 
-                    <div className="request-details">
-                      <p>
-                        <strong>Client ID:</strong> {request.clientId}
-                      </p>
-                      <p>
-                        <strong>Client Account:</strong>{" "}
-                        {request.clientMetaAccount
-                          ? `${request.clientMetaAccount.substring(0, 8)}...`
-                          : "Unknown"}
-                      </p>
-                      <p>
-                        <strong>Requested:</strong>{" "}
-                        {new Date(request.requestedAt).toLocaleString()}
-                      </p>
-                    </div>
-
-                    <div className="request-actions">
-                      {request.status === "pending" && (
-                        <>
-                          <button
-                            className="confirm-button"
-                            onClick={() =>
-                              confirmRideRequest(
-                                selectedRide.rideId,
-                                request.requestId
-                              )
-                            }
-                          >
-                            Accept
-                          </button>
-                          <button
-                            className="reject-button"
-                            onClick={() =>
-                              rejectRideRequest(
-                                selectedRide.rideId,
-                                request.requestId
-                              )
-                            }
-                          >
-                            Reject
-                          </button>
-                        </>
-                      )}
-
-                      {request.status === "accepted" && (
-                        <p className="request-accepted-message">
-                          Ride request accepted
+                      <div className="request-details">
+                        <p>
+                          <strong>Client ID:</strong> {request.clientId}
                         </p>
-                      )}
-
-                      {request.status === "rejected" && (
-                        <p className="request-rejected-message">
-                          This request has been rejected
+                        <p>
+                          <strong>Client Account:</strong>{" "}
+                          {request.clientMetaAccount
+                            ? `${request.clientMetaAccount.substring(0, 8)}...`
+                            : "Unknown"}
                         </p>
-                      )}
+                        <p>
+                          <strong>Requested:</strong>{" "}
+                          {new Date(request.requestedAt).toLocaleString()}
+                        </p>
+                      </div>
+
+                      <div className="request-actions">
+                        {request.status === "pending" && (
+                          <>
+                            <button
+                              className="confirm-button"
+                              onClick={() =>
+                                confirmRideRequest(
+                                  selectedRide.rideId,
+                                  request.requestId
+                                )
+                              }
+                            >
+                              Accept
+                            </button>
+                            <button
+                              className="reject-button"
+                              onClick={() =>
+                                rejectRideRequest(
+                                  selectedRide.rideId,
+                                  request.requestId
+                                )
+                              }
+                            >
+                              Reject
+                            </button>
+                          </>
+                        )}
+
+                        {request.status === "accepted" && (
+                          <p className="request-accepted-message">
+                            Ride request accepted
+                          </p>
+                        )}
+
+                        {request.status === "rejected" && (
+                          <p className="request-rejected-message">
+                            This request has been rejected
+                          </p>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
+            )}
+          </div>
+
+          {/* Only show the map when showMap is true */}
+          {showMap && (
+            <div className="map-container">
+              <APIProvider apiKey={process.env.REACT_APP_GOOGLE_MAPS_API_KEY}>
+                <Map
+                  defaultCenter={
+                    currentPosition || { lat: 43.6532, lng: -79.3832 }
+                  }
+                  defaultZoom={13}
+                  gestureHandling={"greedy"}
+                  disableDefaultUI={true}
+                  onClick={handleMapClick}
+                >
+                  {currentPosition && (
+                    <Marker
+                      position={currentPosition}
+                      title="Your Location (Start)"
+                    />
+                  )}
+                  {destination && (
+                    <Marker
+                      position={destination}
+                      title="Destination"
+                      icon={{
+                        url: DestinationMarker,
+                        scaledSize: { width: 40, height: 40 },
+                      }}
+                    />
+                  )}
+                  {pickupLocation && (
+                    <Marker
+                      position={pickupLocation}
+                      title="Pickup Point"
+                      icon={{
+                        url: "https://maps.google.com/mapfiles/ms/icons/green-dot.png",
+                      }}
+                    />
+                  )}
+                  {currentPosition && destination && (
+                    <Directions
+                      origin={currentPosition}
+                      destination={destination}
+                      setDistance={setDistance}
+                      setDuration={setDuration}
+                    />
+                  )}
+                </Map>
+              </APIProvider>
             </div>
           )}
         </div>
-
-        {/* Only show the map when showMap is true */}
-        {showMap && (
-          <div className="map-container">
-            <APIProvider apiKey={process.env.REACT_APP_GOOGLE_MAPS_API_KEY}>
-              <Map
-                defaultCenter={
-                  currentPosition || { lat: 43.6532, lng: -79.3832 }
-                }
-                defaultZoom={13}
-                gestureHandling={"greedy"}
-                disableDefaultUI={true}
-                onClick={handleMapClick}
-              >
-                {currentPosition && (
-                  <Marker
-                    position={currentPosition}
-                    title="Your Location (Start)"
-                  />
-                )}
-                {destination && (
-                  <Marker
-                    position={destination}
-                    title="Destination"
-                    icon={{
-                      url: DestinationMarker,
-                      scaledSize: { width: 40, height: 40 },
-                    }}
-                  />
-                )}
-                {pickupLocation && (
-                  <Marker
-                    position={pickupLocation}
-                    title="Pickup Point"
-                    icon={{
-                      url: "https://maps.google.com/mapfiles/ms/icons/green-dot.png",
-                    }}
-                  />
-                )}
-                {currentPosition && destination && (
-                  <Directions
-                    origin={currentPosition}
-                    destination={destination}
-                    setDistance={setDistance}
-                    setDuration={setDuration}
-                  />
-                )}
-              </Map>
-            </APIProvider>
-          </div>
-        )}
       </div>
-    </>
+    </div>
   );
 }
 
@@ -1380,6 +1537,11 @@ function Directions({ origin, destination, setDistance, setDuration }) {
     const renderer = new routesLibrary.DirectionsRenderer({
       map,
       suppressMarkers: true,
+      polylineOptions: {
+        strokeColor: "#f6851b", // Match the theme color
+        strokeWeight: 5,
+        strokeOpacity: 0.8,
+      },
     });
     setDirectionsService(service);
     setDirectionsRenderer(renderer);

@@ -1,103 +1,599 @@
-.DriverMap-MainContainer {
-  display: grid;
-  grid-template-columns: 1fr;
-  background: rgb(18, 17, 22);
-  width: 100%;
+/* Modern Driver Map Layout */
+.driver-map-wrapper {
   min-height: 100vh;
-}
-
-/* When map is shown, use two columns */
-.DriverMap-MainContainer.show-map {
-  grid-template-columns: 0.4fr 1.6fr;
-}
-
-.DriverControlsContainer {
-  background: rgb(18, 17, 22);
-  padding: 20px;
-  overflow-y: auto;
-  max-height: 100vh;
-}
-
-.MapContainer {
-  position: relative;
-  height: 100%;
-  border-radius: 8px;
-  overflow: hidden;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-.Driver-Search-Para {
-  color: white;
-}
-
-.SearchingClient {
-  margin-top: 3rem;
-  margin-left: 6rem;
+  background-color: #f8f9fa;
+  color: #333;
   display: flex;
-  width: 3.5em;
-  height: 3.5em;
-  border: 3px solid transparent;
-  border-top-color: #3cefff;
-  border-bottom-color: #3cefff;
+  flex-direction: column;
+}
+
+/* Reuse the dashboard header styling */
+.dashboard-header {
+  height: 70px;
+  background-color: #ffffff;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 2rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.dashboard-logo h1 {
+  color: #f6851b;
+  margin: 0;
+  font-size: 1.8rem;
+  font-weight: 700;
+}
+
+.dashboard-user {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.user-greeting {
+  font-size: 0.9rem;
+  color: #6c757d;
+}
+
+.user-avatar {
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
-  animation: spin 1.5s linear infinite;
-}
-
-.SearchingClient:before {
-  content: "";
-  display: block;
-  margin: auto;
-  width: 0.75em;
-  height: 0.75em;
-  border: 3px solid #3cefff;
-  border-radius: 50%;
-  animation: pulse 1s alternate ease-in-out infinite;
-}
-
-.DriverDetails-Container {
-  margin-top: 2rem;
-}
-
-.Ride-Found-Container {
+  background-color: #f6851b;
   color: white;
-}
-
-.Ride-Accept-Button {
-  margin-top: 2rem;
-  background-color: #13aa52;
-  border: 1px solid #13aa52;
-  border-radius: 2px;
-  color: #fff;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 1.2rem;
+  font-weight: bold;
   cursor: pointer;
-  font-size: 16px;
-  font-weight: 400;
-  padding: 10px 25px;
-  text-align: center;
-  transform: translateY(0);
+  transition: transform 0.2s;
 }
 
-.Ride-Accept-Button:hover {
-  transform: translateY(-2px);
+.user-avatar:hover {
+  transform: scale(1.05);
 }
 
-.RideCompleted-Button {
-  margin-top: 1rem;
-  background-color: rgb(232, 248, 3);
-  color: black;
+/* New layout structure */
+.driver-map-container {
+  display: flex;
+  flex: 1;
+}
+
+.driver-map-sidebar {
+  width: 250px;
+  background-color: #343a40;
+  color: #fff;
+  padding: 1.5rem 0;
+  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.sidebar-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.sidebar-button {
+  background: none;
   border: none;
-  width: 8rem;
-  height: 1.5rem;
-  font-size: 17px;
-  text-decoration: none;
+  color: #fff;
+  padding: 0.75rem 1.5rem;
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  transition: background-color 0.3s;
+  font-size: 1rem;
+}
+
+.sidebar-button:hover {
+  background-color: #495057;
+}
+
+.sidebar-button.active {
+  background-color: #f6851b;
+  color: white;
+  font-weight: 600;
+}
+
+.sidebar-button.back-button {
+  margin-top: 1rem;
+  border-top: 1px solid #495057;
+  padding-top: 1.5rem;
+}
+
+.sidebar-button.logout-button {
+  color: #ff6b6b;
+}
+
+.button-icon {
+  font-size: 1.2rem;
+}
+
+.driver-map-main {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+.driver-map-content {
+  flex: 1;
+  padding: 1.5rem;
+  overflow-y: auto;
+  background-color: #f8f9fa;
+}
+
+.driver-map-content.with-map {
+  flex: 0.4;
+}
+
+.map-container {
+  flex: 0.6;
+  height: calc(100vh - 70px);
+}
+
+/* Post Ride Form with modern styling */
+.post-ride-form {
+  background-color: white;
+  padding: 1.5rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  margin-bottom: 1.5rem;
+}
+
+.post-ride-form h3 {
+  margin-top: 0;
+  margin-bottom: 1.5rem;
+  color: #343a40;
+  font-weight: 600;
+  border-bottom: 2px solid #f6851b;
+  padding-bottom: 0.5rem;
   display: inline-block;
 }
 
-@media (min-width: 768px) {
-  .button-37 {
-    padding: 10px 30px;
+.form-group {
+  position: relative;
+  margin-bottom: 1.25rem;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+  color: #495057;
+}
+
+.form-group input,
+.form-group select {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  font-size: 0.95rem;
+  transition: all 0.2s ease;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+  border-color: #f6851b;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(246, 133, 27, 0.15);
+}
+
+.submit-ride-button {
+  background-color: #f6851b;
+  color: white;
+  border: none;
+  padding: 0.75rem 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 600;
+  width: 100%;
+  margin-top: 1rem;
+  transition: background-color 0.3s;
+}
+
+.submit-ride-button:hover {
+  background-color: #e67e22;
+}
+
+.submit-ride-button:disabled {
+  background-color: #adb5bd;
+  cursor: not-allowed;
+}
+
+/* Rides List with modern styling */
+.my-rides-list {
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.my-rides-list h3 {
+  margin-top: 0;
+  margin-bottom: 1.5rem;
+  color: #343a40;
+  font-weight: 600;
+  border-bottom: 2px solid #f6851b;
+  padding-bottom: 0.5rem;
+  display: inline-block;
+}
+
+.rides-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.25rem;
+}
+
+.ride-item {
+  background-color: #fff;
+  border-radius: 8px;
+  padding: 1.25rem;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid #eaecef;
+}
+
+.ride-item:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
+}
+
+.ride-item.selected {
+  border: 2px solid #f6851b;
+  box-shadow: 0 4px 12px rgba(246, 133, 27, 0.2);
+}
+
+.ride-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.ride-header h4 {
+  margin: 0;
+  color: #343a40;
+  font-size: 1.1rem;
+}
+
+.status {
+  padding: 0.3em 0.7em;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.status.active {
+  background-color: rgba(25, 135, 84, 0.1);
+  color: #198754;
+}
+
+.status.in_progress {
+  background-color: rgba(13, 110, 253, 0.1);
+  color: #0d6efd;
+}
+
+.status.completed {
+  background-color: rgba(108, 117, 125, 0.1);
+  color: #6c757d;
+}
+
+.status.cancelled {
+  background-color: rgba(220, 53, 69, 0.1);
+  color: #dc3545;
+}
+
+.status.requested {
+  background-color: rgba(255, 193, 7, 0.1);
+  color: #ffc107;
+}
+
+.status.confirmed {
+  background-color: rgba(25, 135, 84, 0.1);
+  color: #198754;
+}
+
+.ride-details {
+  margin-bottom: 1rem;
+}
+
+.ride-details p {
+  margin: 0.4rem 0;
+  font-size: 0.9rem;
+  color: #6c757d;
+}
+
+.ride-details p strong {
+  color: #495057;
+  font-weight: 600;
+  margin-right: 0.25rem;
+}
+
+/* Ride action buttons */
+.start-ride-button,
+.complete-ride-button {
+  width: 100%;
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 4px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 0.9rem;
+  margin-top: 0.5rem;
+}
+
+.start-ride-button {
+  background-color: #0d6efd;
+  color: white;
+}
+
+.start-ride-button:hover {
+  background-color: #0b5ed7;
+}
+
+.complete-ride-button {
+  background-color: #6c757d;
+  color: white;
+}
+
+.complete-ride-button:hover {
+  background-color: #5c636a;
+}
+
+/* Ride Requests with modern styling */
+.ride-requests {
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.ride-requests h3 {
+  margin-top: 0;
+  margin-bottom: 1.5rem;
+  color: #343a40;
+  font-weight: 600;
+  border-bottom: 2px solid #f6851b;
+  padding-bottom: 0.5rem;
+  display: inline-block;
+}
+
+.requests-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.25rem;
+}
+
+.request-item {
+  background-color: #fff;
+  border-radius: 8px;
+  padding: 1.25rem;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+  border-left: 4px solid #ced4da;
+  margin-bottom: 1rem;
+  transition: all 0.2s ease;
+}
+
+.request-item:hover {
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.request-item.requested {
+  border-left-color: #ffc107;
+}
+
+.request-item.accepted {
+  border-left-color: #198754;
+}
+
+.request-item.rejected {
+  border-left-color: #dc3545;
+}
+
+.request-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.confirm-button,
+.reject-button {
+  flex: 1;
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 4px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 0.9rem;
+}
+
+.confirm-button {
+  background-color: #198754;
+  color: white;
+}
+
+.confirm-button:hover {
+  background-color: #157347;
+}
+
+.reject-button {
+  background-color: #dc3545;
+  color: white;
+}
+
+.reject-button:hover {
+  background-color: #bb2d3b;
+}
+
+/* Form hint */
+.form-hint {
+  display: block;
+  margin-top: 0.3rem;
+  font-size: 0.8rem;
+  color: #6c757d;
+  font-style: italic;
+}
+
+/* Error message */
+.error-message {
+  color: #dc3545;
+  font-size: 0.85rem;
+  margin-top: 0.5rem;
+}
+
+/* Map selection buttons */
+.map-select-button {
+  margin-left: 0.5rem;
+  padding: 0.4rem 0.75rem;
+  background-color: #198754;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  transition: all 0.2s ease;
+}
+
+.map-select-button:hover {
+  background-color: #157347;
+}
+
+.map-select-button.active {
+  background-color: #198754;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Responsive adjustments */
+@media (max-width: 992px) {
+  .driver-map-main {
+    flex-direction: column;
+  }
+
+  .driver-map-content {
+    flex: none;
+    order: 2;
+    width: 100%;
+  }
+
+  .driver-map-content.with-map {
+    flex: none;
+  }
+
+  .map-container {
+    flex: none;
+    order: 1;
+    height: 300px;
+    width: 100%;
   }
 }
 
+@media (max-width: 768px) {
+  .driver-map-container {
+    flex-direction: column;
+  }
+
+  .driver-map-sidebar {
+    width: 100%;
+    padding: 0.75rem 0;
+    flex-direction: row;
+    overflow-x: auto;
+  }
+
+  .sidebar-section {
+    flex-direction: row;
+    padding: 0 1rem;
+  }
+
+  .sidebar-button {
+    padding: 0.5rem 1rem;
+    white-space: nowrap;
+  }
+
+  .sidebar-button.back-button {
+    margin-top: 0;
+    border-top: none;
+    padding-top: 0.5rem;
+  }
+
+  .rides-container,
+  .requests-container {
+    grid-template-columns: 1fr;
+  }
+
+  .map-container {
+    height: 250px;
+  }
+
+  .dashboard-header {
+    padding: 0 1rem;
+  }
+
+  .user-greeting {
+    display: none;
+  }
+}
+
+@media (max-width: 576px) {
+  .sidebar-button span {
+    display: none;
+  }
+
+  .sidebar-button {
+    justify-content: center;
+  }
+
+  .button-icon {
+    font-size: 1.4rem;
+  }
+}
+
+/* Animation for status transitions */
+@keyframes statusTransition {
+  0% {
+    transform: scale(0.9);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.status {
+  animation: statusTransition 0.3s ease;
+}
+
+/* Loading state */
+.loading-indicator {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 300px;
+  font-size: 1.2rem;
+  color: #6c757d;
+}
+
+/* Legacy animations for compatibility */
 @keyframes spin {
   to {
     transform: rotate(360deg);
@@ -113,604 +609,158 @@
   }
 }
 
-@media (min-width: 280px) and (max-width: 319px) {
-  .DriverMap-MainContainer {
-    width: 40rem;
-  }
-  .SearchingClient {
-    margin-left: 30%;
-  }
-
-  .Car-Logo {
-    margin-top: 2rem;
-    width: 100px;
-    height: 100px;
-  }
-}
-
-/* Driver controls */
-.driver-controls {
+/* Enhanced form styles */
+.form-section-title {
   display: flex;
-  justify-content: space-between;
-  margin: 10px 0;
-  padding: 0 20px;
-}
-
-.post-ride-button,
-.my-rides-button {
-  background-color: #4caf50;
-  color: white;
-  border: none;
-  padding: 10px 15px;
-  border-radius: 5px;
-  cursor: pointer;
-  font-weight: bold;
-  transition: background-color 0.3s;
-}
-
-.post-ride-button:hover,
-.my-rides-button:hover {
-  background-color: #45a049;
-}
-
-.my-rides-button {
-  background-color: #2196f3;
-}
-
-.my-rides-button:hover {
-  background-color: #0b7dda;
-}
-
-/* Post Ride Form */
-.post-ride-form {
-  background-color: white;
-  padding: 20px;
-  border-radius: 8px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-  margin-bottom: 20px;
-}
-
-.post-ride-form h3 {
-  margin-top: 0;
-  margin-bottom: 15px;
-  color: #2c3e50;
-  border-bottom: 1px solid #eee;
-  padding-bottom: 10px;
-}
-
-.form-group {
-  position: relative;
-  margin-bottom: 20px;
-}
-
-.form-group label {
-  display: block;
-  margin-bottom: 8px;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  margin-top: 1.5rem;
+  color: #495057;
   font-weight: 600;
-  color: #2c3e50;
+  font-size: 1rem;
 }
 
-.form-group input,
-.form-group select {
-  width: 100%;
-  padding: 10px 12px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 14px;
-  transition: border-color 0.2s ease;
+.form-section-icon {
+  color: #f6851b;
 }
 
-.form-group input:focus,
-.form-group select:focus {
-  border-color: #3498db;
-  outline: none;
-  box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
-}
-
-.submit-ride-button {
-  background-color: #3498db;
-  color: white;
-  border: none;
-  padding: 10px 15px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-weight: bold;
-  width: 100%;
-  margin-top: 10px;
-}
-
-.submit-ride-button:hover {
-  background-color: #2980b9;
-}
-
-.submit-ride-button:disabled {
-  background-color: #95a5a6;
-  cursor: not-allowed;
-}
-
-/* Rides List */
-.my-rides-list {
-  background-color: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-  margin: 20px;
-  padding: 20px;
-  max-height: 400px;
-  overflow-y: auto;
-}
-
-.my-rides-list h3 {
-  margin-top: 0;
-  color: #333;
-  border-bottom: 1px solid #eee;
-  padding-bottom: 10px;
-}
-
-.rides-container {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 15px;
-}
-
-.ride-item {
-  background-color: #f9f9f9;
-  border-radius: 5px;
-  padding: 15px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  cursor: pointer;
-  transition: transform 0.2s, box-shadow 0.2s;
-}
-
-.ride-item:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-}
-
-.ride-item.selected {
-  border: 2px solid #2196f3;
-}
-
-.ride-header {
+.form-row {
   display: flex;
-  justify-content: space-between;
+  gap: 1rem;
+}
+
+.form-group.half {
+  flex: 1;
+}
+
+.current-location-tag {
+  display: inline-flex;
   align-items: center;
-  margin-bottom: 10px;
+  background-color: #e9ecef;
+  border-radius: 20px;
+  padding: 0.25rem 0.75rem;
+  margin-top: 0.5rem;
+  font-size: 0.8rem;
+  color: #495057;
+  gap: 0.3rem;
 }
 
-.ride-header h4 {
-  margin: 0;
-  color: #333;
+.location-icon {
+  color: #f6851b;
+  font-size: 0.75rem;
 }
 
-.status {
-  padding: 3px 8px;
-  border-radius: 12px;
-  font-size: 12px;
-  font-weight: bold;
-}
-
-.status.active {
-  background-color: #4caf50;
-  color: white;
-}
-
-.status.in_progress {
-  background-color: #2196f3;
-  color: white;
-}
-
-.status.completed {
-  background-color: #9e9e9e;
-  color: white;
-}
-
-.status.cancelled {
-  background-color: #f44336;
-  color: white;
-}
-
-.status.requested {
-  background-color: #ffc107;
-  color: black;
-}
-
-.status.confirmed {
-  background-color: #4caf50;
-  color: white;
-}
-
-.ride-details {
-  margin-bottom: 15px;
-}
-
-.ride-details p {
-  margin: 5px 0;
-  font-size: 14px;
-}
-
-/* Ride Requests */
-.ride-requests {
-  background-color: white;
+.route-summary {
+  background-color: #e9ecef;
   border-radius: 8px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-  margin: 20px;
-  padding: 20px;
-  max-height: 400px;
-  overflow-y: auto;
-}
-
-.ride-requests h3 {
-  margin-top: 0;
-  color: #333;
-  border-bottom: 1px solid #eee;
-  padding-bottom: 10px;
-}
-
-.requests-container {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 15px;
-}
-
-.request-item {
-  background-color: #f9f9f9;
-  border-radius: 5px;
-  padding: 15px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-
-.request-header {
+  padding: 1rem;
+  margin: 1rem 0;
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 10px;
+  gap: 1.5rem;
 }
 
-.request-header h4 {
-  margin: 0;
-  color: #333;
-}
-
-.request-details {
-  margin-bottom: 15px;
-}
-
-.request-details p {
-  margin: 5px 0;
-  font-size: 14px;
-}
-
-.request-actions {
+.summary-item {
   display: flex;
-  gap: 10px;
-  margin-top: 10px;
+  flex-direction: column;
 }
 
-.confirm-button,
-.reject-button,
-.complete-button {
-  padding: 8px 16px;
-  border: none;
-  border-radius: 4px;
+.summary-label {
+  font-size: 0.8rem;
+  color: #6c757d;
+}
+
+.summary-value {
+  font-size: 1.1rem;
   font-weight: 600;
-  cursor: pointer;
-  transition: background-color 0.3s;
+  color: #343a40;
 }
 
-.confirm-button {
-  background-color: #4caf50;
-  color: white;
-}
-
-.confirm-button:hover {
-  background-color: #3d8b40;
-}
-
-.reject-button {
-  background-color: #f44336;
-  color: white;
-}
-
-.reject-button:hover {
-  background-color: #d32f2f;
-}
-
-.complete-button {
-  background-color: #2196f3;
-  color: white;
-}
-
-.complete-button:hover {
-  background-color: #1976d2;
-}
-
-/* Style for request items */
-.request-item {
-  background-color: white;
-  border-radius: 8px;
-  padding: 15px;
-  margin-bottom: 15px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  border-left: 4px solid #ccc;
-}
-
-.request-item.requested {
-  border-left-color: #ff9800;
-}
-
-.request-item.accepted {
-  border-left-color: #4caf50;
-}
-
-.request-item.rejected {
-  border-left-color: #f44336;
-}
-
-.request-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 10px;
-}
-
-.request-header h4 {
-  margin: 0;
-  font-size: 16px;
-}
-
-.status {
+.loading-spinner {
   display: inline-block;
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 12px;
-  font-weight: 600;
-  text-transform: uppercase;
+  width: 1rem;
+  height: 1rem;
+  margin-right: 0.5rem;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  border-top-color: white;
+  animation: spin 0.8s linear infinite;
 }
 
-.status.requested {
-  background-color: #fff3e0;
-  color: #e65100;
-}
-
-.status.accepted {
-  background-color: #e8f5e9;
-  color: #2e7d32;
-}
-
-.status.rejected {
-  background-color: #ffebee;
-  color: #c62828;
-}
-
-.request-details {
-  margin-bottom: 10px;
-}
-
-.request-details p {
-  margin: 5px 0;
-  font-size: 14px;
-}
-
-/* Toggle Map Button */
-.toggle-map-button {
-  background-color: #ff9800;
-  color: white;
-  border: none;
-  padding: 10px 15px;
-  border-radius: 5px;
-  cursor: pointer;
-  font-weight: bold;
-  transition: background-color 0.3s;
-}
-
-.toggle-map-button:hover {
-  background-color: #e68a00;
-}
-
-/* Map toggle prompt */
 .map-toggle-prompt {
   display: flex;
   align-items: center;
   justify-content: space-between;
   background-color: #f8f9fa;
-  padding: 10px;
-  border-radius: 4px;
-  margin: 15px 0;
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
+  border: 1px dashed #ced4da;
+  margin: 1rem 0;
 }
 
 .map-toggle-prompt p {
   margin: 0;
   font-size: 0.9rem;
-  color: #7f8c8d;
+  color: #6c757d;
 }
 
 .show-map-button {
-  background-color: #27ae60;
+  background-color: #f6851b;
   color: white;
   border: none;
-  padding: 8px 16px;
+  padding: 0.5rem 1rem;
   border-radius: 4px;
   cursor: pointer;
   font-size: 0.9rem;
   font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
   transition: all 0.2s ease;
 }
 
 .show-map-button:hover {
-  background-color: #219653;
-  transform: translateY(-1px);
+  background-color: #e67e22;
 }
 
-.map-instruction {
-  color: #4caf50;
-  font-style: italic;
-  margin: 15px 0;
-  text-align: right;
+.location-input-container {
+  position: relative;
 }
 
-.error-message {
-  color: #e74c3c;
-  font-size: 0.9rem;
-  margin-top: 5px;
-}
-
-/* Map selection buttons */
 .map-select-button {
-  margin-left: 8px;
-  padding: 6px 12px;
-  background-color: #27ae60;
+  margin-left: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background-color: #198754;
   color: white;
-  border: 1px solid #219653;
+  border: none;
   border-radius: 4px;
   cursor: pointer;
-  font-size: 0.9rem;
-  transition: all 0.2s ease;
+  font-size: 0.85rem;
   display: inline-flex;
   align-items: center;
-  justify-content: center;
+  gap: 0.3rem;
+  transition: all 0.2s ease;
+  margin-top: 0.5rem;
 }
 
 .map-select-button:hover {
-  background-color: #219653;
-  border-color: #1e874b;
+  background-color: #157347;
 }
 
 .map-select-button.active {
-  background-color: #27ae60;
-  color: white;
-  border-color: #219653;
+  background-color: #f6851b;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-.map-select-button.active:hover {
-  background-color: #219653;
-}
-
-/* Responsive layout for location selection */
-@media (min-width: 768px) {
-  .location-input-container {
-    display: flex;
-    align-items: center;
+/* Responsive adjustments for form */
+@media (max-width: 576px) {
+  .form-row {
+    flex-direction: column;
+    gap: 0;
   }
 
-  .location-input-container input {
-    flex: 1;
+  .route-summary {
+    flex-direction: column;
+    gap: 0.5rem;
   }
-
-  .location-input-container .map-select-button {
-    margin-left: 10px;
-    white-space: nowrap;
-  }
-}
-
-/* Map mode indicator improvements */
-.map-mode-indicator {
-  position: absolute;
-  top: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 10;
-  background-color: rgba(255, 255, 255, 0.95);
-  padding: 10px 20px;
-  border-radius: 30px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  border: 1px solid rgba(0, 0, 0, 0.1);
-  text-align: center;
-  transition: all 0.3s ease;
-}
-
-.mode-badge {
-  font-weight: 600;
-  font-size: 14px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.mode-badge::before {
-  content: "";
-  display: inline-block;
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  margin-right: 8px;
-  background-color: #27ae60;
-}
-
-/* Improve map container */
-.MapContainer {
-  position: relative;
-  height: 100%;
-  border-radius: 8px;
-  overflow: hidden;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-/* Improve markers */
-.marker-label {
-  background-color: white;
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 12px;
-  font-weight: bold;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-}
-
-/* Form hint */
-.form-hint {
-  display: block;
-  margin-top: 4px;
-  font-size: 0.8rem;
-  color: #7f8c8d;
-  font-style: italic;
-}
-
-.complete-button:hover {
-  background-color: #c0392b;
-}
-
-.start-ride-button {
-  background-color: #3498db;
-  color: white;
-  border: none;
-  padding: 8px 12px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-weight: bold;
-  margin-top: 10px;
-  transition: background-color 0.3s;
-}
-
-.start-ride-button:hover {
-  background-color: #2980b9;
-}
-
-.complete-ride-button {
-  background-color: #e74c3c;
-  color: white;
-  border: none;
-  padding: 8px 12px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-weight: bold;
-  margin-top: 10px;
-  transition: background-color 0.3s;
-}
-
-.complete-ride-button:hover {
-  background-color: #c0392b;
-}
-
-.request-rejected-message {
-  color: #e74c3c;
-  font-style: italic;
-  text-align: center;
-  padding: 8px 0;
-}
-
-.request-accepted-message {
-  color: #2ecc71;
-  font-style: italic;
-  text-align: center;
-  padding: 8px 0;
 }

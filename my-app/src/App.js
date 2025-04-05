@@ -1,4 +1,3 @@
-import logo from "./logo.svg";
 import "./App.css";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Home from "./Components/Home";
@@ -9,6 +8,7 @@ import DriverMap from "./Components/DriverMap";
 import ApiKeyHelper from "./Components/ApiKeyHelper";
 import DriverRegistration from "./Components/DriverRegistration";
 import ClientRegistration from "./Components/ClientRegistration";
+import DriverDashboard from "./Components/DriverDashboard";
 import { useState, useEffect } from "react";
 
 function App() {
@@ -38,6 +38,7 @@ function App() {
           <Route path="/ClientLocation" element={<ClientMap />} />
           <Route path="/DriverRegistration" element={<DriverRegistration />} />
           <Route path="/ClientRegistration" element={<ClientRegistration />} />
+          <Route path="/DriverDashboard" element={<DriverDashboard />} />
         </Routes>
       </BrowserRouter>
     </div>
