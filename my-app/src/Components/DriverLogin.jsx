@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import Header from "./Header";
 import Meta from "../Assets/Images/MetaMask.png";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import "../Styles/DriverLogin.css";
 import DriverBackground from "../Assets/Images/Driver-BG.jpg";
 import axios from "axios";
@@ -136,7 +136,7 @@ function DriverLogin() {
             <div className="registration-link">
               <p>
                 New to RideApp?{" "}
-                <a href="/DriverRegistration">Register as a Driver</a>
+                <Link to="/DriverRegistration">Register as a Driver</Link>
               </p>
             </div>
           </div>

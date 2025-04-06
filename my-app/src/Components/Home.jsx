@@ -3,6 +3,8 @@ import Header from "./Header";
 import "../Styles/Home.css";
 import { IoIosArrowDown } from "react-icons/io";
 import CarImage from "../Assets/Images/Background.png";
+import { Link } from "react-router-dom";
+import { FiUserPlus, FiLogIn } from "react-icons/fi";
 
 function Home() {
   return (
@@ -12,7 +14,7 @@ function Home() {
         <div className="HomeInnerComponent">
           <div className="Home-Content">
             <div className="Home-Content-Left">
-              <h1 style={{ textAlign: "left" }}>RideApp</h1>
+              <h1 className="text-gradient">RideApp</h1>
               <p>
                 A decentralized, blockchain-based ride-booking platform designed
                 to give riders and drivers control, transparency, and security
@@ -20,31 +22,31 @@ function Home() {
               </p>
               <div className="home-buttons">
                 <div className="driver-section">
-                  <h3 style={{ textAlign: "left" }}>For Drivers</h3>
+                  <h3>For Drivers</h3>
                   <div className="button-group">
-                    <a href="/DriverLogin" className="Home-Button">
-                      Login as Driver
-                    </a>
-                    <a
-                      href="/DriverRegistration"
+                    <Link to="/DriverLogin" className="Home-Button">
+                      <FiLogIn /> Login as Driver
+                    </Link>
+                    <Link
+                      to="/DriverRegistration"
                       className="Home-Button register-button"
                     >
-                      Register as Driver
-                    </a>
+                      <FiUserPlus /> Register as Driver
+                    </Link>
                   </div>
                 </div>
                 <div className="client-section">
-                  <h3 style={{ textAlign: "left" }}>For Riders</h3>
+                  <h3>For Riders</h3>
                   <div className="button-group">
-                    <a href="/ClientLogin" className="Home-Button">
-                      Login as Rider
-                    </a>
-                    <a
-                      href="/ClientRegistration"
+                    <Link to="/ClientLogin" className="Home-Button">
+                      <FiLogIn /> Login as Rider
+                    </Link>
+                    <Link
+                      to="/ClientRegistration"
                       className="Home-Button register-button"
                     >
-                      Register as Rider
-                    </a>
+                      <FiUserPlus /> Register as Rider
+                    </Link>
                   </div>
                 </div>
               </div>
@@ -58,7 +60,7 @@ function Home() {
             <IoIosArrowDown className="Down-Arrow-2" />
           </div>
           <div className="Part2MainContainer">
-            <h1 style={{ textAlign: "center" }}>About Us</h1>
+            <h1>About Us</h1>
             <div className="Part2-Para-Container">
               <p className="Part2-Para">
                 RideApp is a decentralized, blockchain-based ride-booking

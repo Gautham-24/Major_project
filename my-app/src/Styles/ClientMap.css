@@ -1,9 +1,11 @@
 .ClientMapMainContainer {
   display: grid;
   grid-template-columns: 1fr;
-  color: white;
-  background: rgb(18, 17, 22);
+  color: var(--text-light);
+  background: var(--dark-bg);
   min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
 }
 
 /* When map is shown, use two columns */
@@ -12,10 +14,13 @@
 }
 
 .LocationFinderContainer {
-  background: rgb(18, 17, 22);
-  padding: 20px;
+  background: var(--dark-bg);
+  padding: 1.5rem;
   overflow-y: auto;
-  max-height: 100vh;
+  height: 100%;
+  border-right: 1px solid rgba(255, 255, 255, 0.05);
+  display: flex;
+  flex-direction: column;
 }
 
 .MapContainer {
@@ -24,93 +29,146 @@
 }
 
 .LocationFinder-Text {
-  width: 80%;
-  resize: "none";
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background-color: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--border-radius);
+  font-size: 0.95rem;
+  color: var(--text-light);
+  transition: var(--transition);
+  resize: none;
+  margin-bottom: 1rem;
 }
+
+.LocationFinder-Text:focus {
+  border-color: var(--primary);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(82, 98, 234, 0.1);
+}
+
 .Car-Logo {
   width: 50%;
-  height: 20%;
+  height: auto;
+  margin-bottom: 1.5rem;
+  filter: drop-shadow(0 10px 20px rgba(0, 0, 0, 0.4));
 }
 
 .Client-Search-Button {
   margin-top: 1rem;
-  background-color: rgb(232, 248, 3);
-  color: black;
+  background-color: var(--primary);
+  color: var(--text-light);
   border: none;
-  width: 6rem;
-  height: 1.5rem;
+  padding: 0.75rem 1.5rem;
+  border-radius: var(--border-radius);
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  box-shadow: 0 4px 15px rgba(82, 98, 234, 0.2);
+  width: 100%;
+  justify-content: center;
+}
+
+.Client-Search-Button:hover {
+  background-color: var(--primary-light);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 25px rgba(82, 98, 234, 0.3);
+}
+
+.Client-Search-Button:disabled {
+  background-color: var(--text-muted);
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
 
 .SearchingRide {
-  margin-top: 4rem;
-  margin-left: 6rem;
+  margin: 2rem auto;
   display: flex;
   width: 3.5em;
   height: 3.5em;
   border: 3px solid transparent;
-  border-top-color: #3cefff;
-  border-bottom-color: #3cefff;
+  border-top-color: var(--secondary);
+  border-bottom-color: var(--secondary);
   border-radius: 50%;
   animation: spin 1.5s linear infinite;
-}
-.Moving-RideContainer {
-  display: grid;
-  justify-content: center;
-}
-.MovingRide {
-  margin-top: 2rem;
-  display: flex;
-  width: 3.5em;
-  height: 3.5em;
-  border: 3px solid transparent;
-  border-top-color: #3cefff;
-  border-bottom-color: #3cefff;
-  border-radius: 50%;
-  animation: spin 1.5s linear infinite;
-}
-.MovingRide:before {
-  content: "";
-  display: block;
-  margin: auto;
-  width: 0.75em;
-  height: 0.75em;
-  border: 3px solid #3cefff;
-  border-radius: 50%;
-  animation: pulse 1s alternate ease-in-out infinite;
 }
 
-.Client-DriverMetaAcccount {
-  margin-top: -0.6rem;
-  word-wrap: break-word; /* Ensures long words or strings break to fit the container */
-  max-width: 300px; /* Set a maximum width for the container (adjust as needed) */
-  white-space: pre-wrap; /* Preserves whitespace and breaks lines */
-  overflow-wrap: break-word; /* Additional support for breaking long words */
-  text-align: center; /* Aligns the text for readability */
+.Moving-RideContainer {
+  display: flex;
+  justify-content: center;
+  margin: 2rem 0;
 }
-.Client-AcceptRide {
-  background-color: #13aa52;
-  border: 1px solid #13aa52;
-  border-radius: 2px;
-  color: #fff;
-  cursor: pointer;
-  font-size: 16px;
-  font-weight: 400;
-  padding: 10px 25px;
-  text-align: center;
-  transform: translateY(0);
+
+.MovingRide {
+  display: flex;
+  width: 3.5em;
+  height: 3.5em;
+  border: 3px solid transparent;
+  border-top-color: var(--secondary);
+  border-bottom-color: var(--secondary);
+  border-radius: 50%;
+  animation: spin 1.5s linear infinite;
 }
+
+.MovingRide:before,
 .SearchingRide:before {
   content: "";
   display: block;
   margin: auto;
   width: 0.75em;
   height: 0.75em;
-  border: 3px solid #3cefff;
+  border: 3px solid var(--secondary);
   border-radius: 50%;
   animation: pulse 1s alternate ease-in-out infinite;
 }
+
+.Client-DriverMetaAcccount {
+  margin-top: 1rem;
+  word-wrap: break-word;
+  max-width: 100%;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  text-align: center;
+  background-color: rgba(255, 255, 255, 0.05);
+  padding: 0.75rem;
+  border-radius: var(--border-radius);
+  font-family: monospace;
+  font-size: 0.9rem;
+}
+
+.Client-AcceptRide {
+  background-color: var(--primary);
+  border: none;
+  border-radius: var(--border-radius);
+  color: var(--text-light);
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 600;
+  padding: 0.75rem 1.5rem;
+  text-align: center;
+  width: 100%;
+  margin-top: 1rem;
+  transition: var(--transition);
+  box-shadow: 0 4px 15px rgba(82, 98, 234, 0.2);
+}
+
+.Client-AcceptRide:hover {
+  background-color: var(--primary-light);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 25px rgba(82, 98, 234, 0.3);
+}
+
 .Client-Info-Container {
-  margin-top: -0.6rem;
+  margin-top: 1rem;
+  background-color: var(--dark-card);
+  padding: 1.5rem;
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow);
+  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 @keyframes spin {
@@ -132,303 +190,379 @@
 .client-controls {
   display: flex;
   justify-content: space-between;
-  margin: 10px 0;
-  padding: 0 20px;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
 }
 
 .available-rides-button,
 .my-rides-button {
-  background-color: #4caf50;
-  color: white;
-  border: none;
-  padding: 10px 15px;
-  border-radius: 5px;
+  background-color: var(--dark-card);
+  color: var(--text-light);
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  padding: 0.75rem 1.25rem;
+  border-radius: var(--border-radius);
   cursor: pointer;
-  font-weight: bold;
-  transition: background-color 0.3s;
+  font-weight: 600;
+  transition: var(--transition);
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
 }
 
 .available-rides-button:hover,
 .my-rides-button:hover {
-  background-color: #45a049;
+  border-color: var(--primary);
+  background-color: rgba(82, 98, 234, 0.1);
 }
 
-.my-rides-button {
-  background-color: #2196f3;
+.available-rides-button.active,
+.my-rides-button.active {
+  background-color: rgba(82, 98, 234, 0.15);
+  border-color: var(--primary);
+  color: var(--text-light);
 }
 
-.my-rides-button:hover {
-  background-color: #0b7dda;
-}
-
-/* Available Rides List */
-.available-rides-list {
-  background-color: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-  margin: 20px;
-  padding: 20px;
-  max-height: 400px;
+/* Client My Rides List */
+.my-rides-list {
+  background-color: var(--dark-card);
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow);
+  margin-bottom: 1.5rem;
+  padding: 1.5rem;
   overflow-y: auto;
-  color: #000000;
+  color: var(--text-light);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
 }
 
-.available-rides-list h3 {
+.my-rides-list h3 {
   margin-top: 0;
-  color: #333;
-  border-bottom: 1px solid #eee;
-  padding-bottom: 10px;
+  color: var(--text-light);
+  font-weight: 600;
+  position: relative;
+  padding-bottom: 0.5rem;
+  display: inline-block;
+  margin-bottom: 1.5rem;
+}
+
+.my-rides-list h3::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: linear-gradient(90deg, var(--primary), var(--secondary));
 }
 
 .rides-container {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 15px;
+  gap: 1.25rem;
+  flex-grow: 1;
+  overflow-y: auto;
+  padding-right: 0.5rem;
 }
 
 .ride-item {
-  background-color: #f9f9f9;
-  border-radius: 5px;
-  padding: 15px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  background-color: rgba(255, 255, 255, 0.03);
+  border-radius: var(--border-radius);
+  padding: 1.25rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   cursor: pointer;
-  transition: transform 0.2s, box-shadow 0.2s;
-  color: #000000;
+  transition: var(--transition);
+  color: var(--text-light);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
 }
 
 .ride-item:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  transform: translateY(-3px);
+  box-shadow: var(--shadow);
 }
 
 .ride-item.selected {
-  border: 2px solid #2196f3;
+  background-color: rgba(82, 98, 234, 0.1);
+  border: 1px solid rgba(82, 98, 234, 0.3);
 }
 
 .ride-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 10px;
+  margin-bottom: 0.5rem;
 }
 
 .ride-header h4 {
   margin: 0;
-  color: #333;
+  font-size: 1.1rem;
+  color: var(--text-light);
+  font-weight: 600;
 }
 
-.seats-available {
-  background-color: #4caf50;
-  color: white;
-  padding: 3px 8px;
-  border-radius: 12px;
-  font-size: 12px;
-  font-weight: bold;
+.ride-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.85rem;
+  color: var(--text-muted);
 }
 
-.status {
-  padding: 3px 8px;
-  border-radius: 12px;
-  font-size: 12px;
-  font-weight: bold;
-}
-
-.status.requested {
-  background-color: #ffc107;
-  color: black;
-}
-
-.status.confirmed {
-  background-color: #4caf50;
-  color: white;
-}
-
-.status.completed {
-  background-color: #9e9e9e;
-  color: white;
-}
-
-.status.cancelled {
-  background-color: #f44336;
-  color: white;
+.ride-meta span {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
 }
 
 .ride-details {
-  margin-bottom: 15px;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+  padding: 0.75rem;
+  background-color: rgba(255, 255, 255, 0.02);
+  border-radius: var(--border-radius);
 }
 
-.ride-details p {
-  margin: 5px 0;
-  font-size: 14px;
-  color: #000000;
+.detail-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.detail-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.detail-value {
+  font-size: 0.9rem;
+  color: var(--text-light);
+  font-weight: 500;
+}
+
+.ride-actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: auto;
 }
 
 .request-ride-button,
-.pay-button {
-  background-color: #4caf50;
-  color: white;
+.payment-button,
+.cancel-button {
+  flex: 1;
+  padding: 0.75rem;
+  border-radius: var(--border-radius);
   border: none;
-  padding: 8px 12px;
-  border-radius: 4px;
+  font-weight: 600;
   cursor: pointer;
-  font-weight: bold;
-  width: 100%;
-  transition: background-color 0.3s;
+  font-size: 0.85rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  transition: var(--transition);
 }
 
-.request-ride-button:hover,
-.pay-button:hover {
-  background-color: #45a049;
+.request-ride-button {
+  background-color: var(--primary);
+  color: white;
+}
+
+.request-ride-button:hover {
+  background-color: var(--primary-light);
+}
+
+.payment-button {
+  background-color: var(--accent);
+  color: #000;
+}
+
+.payment-button:hover {
+  background-color: #f8d441;
+}
+
+.cancel-button {
+  background-color: rgba(255, 87, 87, 0.1);
+  color: #ff5757;
+}
+
+.cancel-button:hover {
+  background-color: rgba(255, 87, 87, 0.2);
 }
 
 .request-ride-button:disabled,
-.pay-button:disabled {
-  background-color: #cccccc;
+.payment-button:disabled {
+  background-color: var(--text-muted);
   cursor: not-allowed;
-}
-
-.pay-button {
-  background-color: #ff9800;
-}
-
-.pay-button:hover {
-  background-color: #e68a00;
 }
 
 .no-rides-message {
   text-align: center;
-  padding: 20px;
-  color: #000000;
-  background-color: #f9f9f9;
-  border-radius: 5px;
-  margin: 20px;
+  padding: 3rem;
+  color: var(--text-muted);
+  font-size: 1.1rem;
+  background-color: rgba(255, 255, 255, 0.02);
+  border-radius: var(--border-radius);
+  border: 1px dashed rgba(255, 255, 255, 0.1);
 }
 
-/* My Rides List */
-.my-rides-list {
-  background-color: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-  margin: 20px;
-  padding: 20px;
-  max-height: 400px;
-  overflow-y: auto;
-  color: #000000;
+.status {
+  padding: 0.35rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
-.my-rides-list h3 {
-  margin-top: 0;
-  color: #333;
-  border-bottom: 1px solid #eee;
-  padding-bottom: 10px;
+.status.requested {
+  background-color: rgba(240, 200, 52, 0.1);
+  color: var(--accent);
+}
+
+.status.confirmed {
+  background-color: rgba(22, 230, 220, 0.1);
+  color: var(--secondary);
+}
+
+.status.completed {
+  background-color: rgba(46, 213, 115, 0.1);
+  color: #2ed573;
+}
+
+.status.cancelled {
+  background-color: rgba(255, 87, 87, 0.1);
+  color: #ff5757;
+}
+
+.status.payment-pending {
+  background-color: rgba(255, 136, 0, 0.1);
+  color: #ff8800;
 }
 
 .ride-item.requested {
-  border-left: 4px solid #ffc107;
+  border-left: 3px solid var(--accent);
 }
 
 .ride-item.confirmed {
-  border-left: 4px solid #4caf50;
+  border-left: 3px solid var(--secondary);
 }
 
 .ride-item.completed {
-  border-left: 4px solid #9e9e9e;
+  border-left: 3px solid #2ed573;
 }
 
 .ride-item.cancelled {
-  border-left: 4px solid #f44336;
+  border-left: 3px solid #ff5757;
 }
 
-/* Toggle Map Button */
 .toggle-map-button {
-  background-color: #ff9800;
+  background-color: var(--primary);
   color: white;
   border: none;
-  padding: 10px 15px;
-  border-radius: 5px;
+  padding: 0.75rem 1.5rem;
+  border-radius: var(--border-radius);
   cursor: pointer;
-  font-weight: bold;
-  transition: background-color 0.3s;
+  font-weight: 600;
+  transition: var(--transition);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 4px 15px rgba(82, 98, 234, 0.2);
 }
 
 .toggle-map-button:hover {
-  background-color: #e68a00;
+  background-color: var(--primary-light);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 25px rgba(82, 98, 234, 0.3);
 }
 
-/* Payment button styles */
-.payment-button {
-  background-color: #4caf50;
-  color: white;
-  border: none;
-  padding: 10px 15px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-weight: 600;
-  margin-top: 10px;
-  transition: background-color 0.3s;
-  width: 100%;
-}
-
-.payment-button:hover {
-  background-color: #3d8b40;
-}
-
-/* Status styles for payment pending */
-.status.payment-pending {
-  background-color: #ff9800;
-  color: white;
-}
-
-/* Cancel button styles */
-.cancel-button {
-  background-color: #f44336;
-  color: white;
-  border: none;
-  padding: 10px 15px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-weight: 600;
-  margin-top: 10px;
-  transition: background-color 0.3s;
-  width: 100%;
-}
-
-.cancel-button:hover {
-  background-color: #d32f2f;
-}
-
-/* Add styling for ride request status indicators */
 .request-status {
-  display: block;
-  padding: 8px 12px;
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
   border-radius: 4px;
-  margin-top: 10px;
-  font-weight: bold;
-  text-align: center;
-  color: white;
+  font-size: 0.8rem;
+  font-weight: 600;
+  margin-top: 0.5rem;
+  text-transform: uppercase;
 }
 
 .request-status.pending {
-  background-color: #f39c12; /* Orange */
+  background-color: rgba(240, 200, 52, 0.1);
+  color: var(--accent);
 }
 
 .request-status.accepted {
-  background-color: #2ecc71; /* Green */
+  background-color: rgba(22, 230, 220, 0.1);
+  color: var(--secondary);
 }
 
 .request-status.rejected {
-  background-color: #e74c3c; /* Red */
+  background-color: rgba(255, 87, 87, 0.1);
+  color: #ff5757;
 }
 
-/* Add subtle background for the entire ride card based on status */
 .ride-item.status-pending {
-  border-left: 4px solid #f39c12;
+  border-left: 3px solid var(--accent);
 }
 
 .ride-item.status-accepted {
-  border-left: 4px solid #2ecc71;
+  border-left: 3px solid var(--secondary);
 }
 
 .ride-item.status-rejected {
-  border-left: 4px solid #e74c3c;
+  border-left: 3px solid #ff5757;
+}
+
+@media (max-width: 992px) {
+  .ClientMapMainContainer {
+    grid-template-columns: 1fr;
+  }
+
+  .ClientMapMainContainer.show-map {
+    grid-template-columns: 1fr;
+  }
+
+  .LocationFinderContainer {
+    max-height: none;
+    border-right: none;
+  }
+
+  .MapContainer {
+    height: 400px;
+  }
+}
+
+@media (max-width: 768px) {
+  .client-controls {
+    flex-direction: column;
+  }
+
+  .rides-container {
+    grid-template-columns: 1fr;
+  }
+
+  .ride-details {
+    grid-template-columns: 1fr;
+  }
+
+  .ride-actions {
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 480px) {
+  .LocationFinderContainer {
+    padding: 1rem;
+  }
 }

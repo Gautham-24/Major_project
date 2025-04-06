@@ -1,25 +1,71 @@
-.HeaderInnerContainer {
-  display: grid;
-  grid-template-columns: 0.7fr 1fr;
-  background: rgb(18, 17, 22);
-  color: white;
-  height: 5.2rem;
+.HeaderMainContainer {
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  background-color: rgba(15, 15, 18, 0.85);
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
-.Menu {
-  margin-top: 2rem;
-  text-decoration: none;
-  color: white;
-}
-.Login-Header {
-  text-decoration: none;
-  color: white;
 
-  margin-right: 6rem;
+.HeaderInnerContainer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+  height: auto;
+}
+
+.HeaderLogo {
+  display: flex;
+  align-items: center;
 }
 
 .Header-Logo {
-  width: 90px;
-  height: 90px;
+  width: 50px;
+  height: 50px;
+  transition: var(--transition);
+}
+
+.Header-Logo:hover {
+  transform: scale(1.05);
+}
+
+.Menu {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+}
+
+.Login-Header {
+  text-decoration: none;
+  color: var(--text-light);
+  font-weight: 500;
+  position: relative;
+  padding: 0.5rem 0;
+  transition: var(--transition);
+}
+
+.Login-Header::after {
+  content: "";
+  position: absolute;
+  width: 0;
+  height: 2px;
+  bottom: 0;
+  left: 0;
+  background-color: var(--accent);
+  transition: width 0.3s ease;
+}
+
+.Login-Header:hover {
+  color: var(--accent);
+}
+
+.Login-Header:hover::after {
+  width: 100%;
 }
 
 .logout-btn {
@@ -28,12 +74,55 @@
   cursor: pointer;
   font-family: inherit;
   font-size: inherit;
-  color: inherit;
+  color: var(--text-light);
   padding: 0;
   margin: 0;
   text-decoration: none;
+  position: relative;
+  padding: 0.5rem 0;
+  transition: var(--transition);
+}
+
+.logout-btn::after {
+  content: "";
+  position: absolute;
+  width: 0;
+  height: 2px;
+  bottom: 0;
+  left: 0;
+  background-color: #ff6b6b;
+  transition: width 0.3s ease;
 }
 
 .logout-btn:hover {
   color: #ff6b6b;
+}
+
+.logout-btn:hover::after {
+  width: 100%;
+}
+
+@media (max-width: 768px) {
+  .HeaderInnerContainer {
+    padding: 0.75rem 1rem;
+  }
+
+  .Menu {
+    gap: 1.25rem;
+  }
+}
+
+@media (max-width: 576px) {
+  .Header-Logo {
+    width: 40px;
+    height: 40px;
+  }
+
+  .Menu {
+    gap: 1rem;
+  }
+
+  .Login-Header {
+    font-size: 0.9rem;
+  }
 }

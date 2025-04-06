@@ -1472,7 +1472,7 @@ app.get("/api/client-rides/:metaAccount", async (req, res) => {
         .json({ success: false, error: "MetaMask account is required" });
     }
 
-    console.log(`Getting rides for client with meta account ${metaAccount}`);
+    // console.log(`Getting rides for client with meta account ${metaAccount}`);
 
     // First get the client ID associated with this account
     const clientId = await blockchainService.getClientIdByAccount(metaAccount);
@@ -1484,7 +1484,7 @@ app.get("/api/client-rides/:metaAccount", async (req, res) => {
       });
     }
 
-    console.log(`Found client ID: ${clientId}`);
+    // console.log(`Found client ID: ${clientId}`);
 
     // Get the client's rides
     const ridesResult = await blockchainService.getClientRides(clientId);
@@ -1606,6 +1606,45 @@ app.get("/api/rides/:rideId/verify-payment/:metaAccount", async (req, res) => {
     console.error("Error verifying payment eligibility:", error);
     return res.status(500).json({
       error: `Server error: ${error.message}`,
+    });
+  }
+});
+
+// Add a new endpoint to get all ride requests for a client
+app.get("/api/client/:clientId/ride-requests", async (req, res) => {
+  try {
+    const { clientId } = req.params;
+
+    if (!clientId) {
+      return res.status(400).json({
+        success: false,
+        message: "clientId is required",
+      });
+    }
+
+    // Get the client's ride requests from blockchain
+    const clientRequests = await blockchainService.getClientRequests(clientId);
+
+    // If no error but no requests found
+    if (clientRequests.requests && clientRequests.requests.length === 0) {
+      return res.status(200).json({
+        success: true,
+        message: "No ride requests found for this client",
+        requests: [],
+      });
+    }
+
+    // Return all the client's requests
+    return res.status(200).json({
+      success: true,
+      requests: clientRequests.requests || [],
+    });
+  } catch (error) {
+    console.error("Error getting client ride requests:", error.message);
+    return res.status(500).json({
+      success: false,
+      message: "Error retrieving client ride requests",
+      error: error.message,
     });
   }
 });

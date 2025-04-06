@@ -68,6 +68,7 @@ function DriverMap() {
   const [pickupPoint, setPickupPoint] = useState("");
   const [pickupLocation, setPickupLocation] = useState(null);
   const [driverData, setDriverData] = useState(null);
+  const [showRequests, setShowRequests] = useState(false);
 
   // This useEffect will run when the component mounts and when the URL changes
   useEffect(() => {
@@ -714,11 +715,21 @@ function DriverMap() {
     console.log("Available seats:", ride.availableSeats);
   };
 
-  // Add this to the handleRideSelect function
+  // Modify the handleRideSelect function to show requests only when clicked with View Requests button
   const handleRideSelect = (ride) => {
     setSelectedRide(ride);
     logPassengerInfo(ride);
     fetchRideRequests(ride.rideId);
+  };
+
+  // Add a function to open the requests panel
+  const openRequestsPanel = (ride) => {
+    setShowRequests(true);
+  };
+
+  // Add a function to close the requests panel
+  const closeRequestsPanel = () => {
+    setShowRequests(false);
   };
 
   // Update the confirmRideRequest function to work with blockchain
@@ -1300,169 +1311,265 @@ function DriverMap() {
             )}
 
             {/* My Rides List */}
-            {!showPostRideForm && myRides.length > 0 && (
-              <div className="my-rides-list">
-                <h3>My Rides</h3>
+            {!showPostRideForm && (
+              <>
+                <button className="toggle-map-button" onClick={toggleMap}>
+                  {showMap ? (
+                    <>
+                      <FaArrowLeft /> Hide Map
+                    </>
+                  ) : (
+                    <>
+                      <FaMapMarkedAlt /> Show Map
+                    </>
+                  )}
+                </button>
 
-                <div className="rides-container">
-                  {myRides.map((ride) => (
-                    <div
-                      key={ride.rideId}
-                      className={`ride-item ${ride.status} ${
-                        selectedRide && selectedRide.rideId === ride.rideId
-                          ? "selected"
-                          : ""
-                      }`}
-                      onClick={() => handleRideSelect(ride)}
-                    >
-                      <div className="ride-header">
-                        <h4>Ride #{ride.rideId}</h4>
-                        <span className={`status ${ride.status}`}>
-                          {ride.status}
-                        </span>
+                <div className="driver-rides-layout">
+                  {/* Rides Section */}
+                  <div
+                    className={`my-rides-list ${
+                      showRequests ? "with-requests" : "full-width"
+                    }`}
+                  >
+                    <h3>My Rides</h3>
+                    <div className="rides-container">
+                      {isLoading ? (
+                        <div className="loading-spinner"></div>
+                      ) : myRides.length > 0 ? (
+                        myRides.map((ride) => (
+                          <div
+                            key={ride.rideId}
+                            className={`ride-item ${
+                              selectedRide?.rideId === ride.rideId
+                                ? "selected"
+                                : ""
+                            }`}
+                            onClick={() => handleRideSelect(ride)}
+                          >
+                            <div className="ride-header">
+                              <h4>Ride #{ride.rideId}</h4>
+                              <span className={`status ${ride.status}`}>
+                                {ride.status}
+                              </span>
+                            </div>
+
+                            <div className="ride-details">
+                              <div className="detail-item">
+                                <span className="detail-label">From</span>
+                                <span className="detail-value">
+                                  {ride.from || ride.startLocation}
+                                </span>
+                              </div>
+                              <div className="detail-item">
+                                <span className="detail-label">To</span>
+                                <span className="detail-value">
+                                  {ride.to || ride.destination}
+                                </span>
+                              </div>
+                              <div className="detail-item">
+                                <span className="detail-label">Price</span>
+                                <span className="detail-value">
+                                  {ride.price} ETH
+                                </span>
+                              </div>
+                              <div className="detail-item">
+                                <span className="detail-label">Seats</span>
+                                <span className="detail-value">
+                                  {ride.availableSeats}
+                                </span>
+                              </div>
+                              <div className="detail-item">
+                                <span className="detail-label">Departure</span>
+                                <span className="detail-value">
+                                  {new Date(
+                                    parseInt(ride.departureTime) * 1000
+                                  ).toLocaleString()}
+                                </span>
+                              </div>
+                              <div className="detail-item">
+                                <span className="detail-label">Passengers</span>
+                                <span className="detail-value">
+                                  {ride.passengers
+                                    ? ride.passengers.length
+                                    : ride.passengerCount
+                                    ? ride.passengerCount
+                                    : ride.passengerIds
+                                    ? ride.passengerIds.length
+                                    : 0}
+                                </span>
+                              </div>
+                            </div>
+
+                            <div className="ride-actions">
+                              {ride.status === "active" && (
+                                <button
+                                  className="start-ride-button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    startRide(ride.rideId);
+                                  }}
+                                >
+                                  Start Ride
+                                </button>
+                              )}
+                              {ride.status === "in_progress" && (
+                                <button
+                                  className="complete-ride-button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    completeRide(ride.rideId);
+                                  }}
+                                >
+                                  Complete Ride
+                                </button>
+                              )}
+                              <button
+                                className="view-requests-button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleRideSelect(ride);
+                                  openRequestsPanel(ride);
+                                }}
+                              >
+                                View Requests{" "}
+                                {ride.passengerIds?.length > 0 ||
+                                ride.passengerCount > 0 ? (
+                                  <span className="request-count">
+                                    {ride.passengerIds?.length ||
+                                      ride.passengerCount ||
+                                      0}
+                                  </span>
+                                ) : null}
+                              </button>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="no-rides-message">
+                          You haven't posted any rides yet.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Ride Requests - Only visible when showRequests is true */}
+                  {showRequests && (
+                    <div className="ride-requests">
+                      <div className="request-header-container">
+                        <h3>
+                          {selectedRide
+                            ? `Ride Requests for Ride #${selectedRide.rideId}`
+                            : "Ride Requests"}
+                        </h3>
+                        <button
+                          className="close-requests-button"
+                          onClick={closeRequestsPanel}
+                          title="Close requests panel"
+                        >
+                          ×
+                        </button>
                       </div>
+                      <div className="requests-container">
+                        {selectedRide && rideRequests.length > 0 ? (
+                          rideRequests.map((request, index) => (
+                            <div
+                              key={index}
+                              className={`request-item ${request.status}`}
+                            >
+                              <div className="request-header">
+                                <h4>{request.clientName}</h4>
+                                <span className={`status ${request.status}`}>
+                                  {request.status}
+                                </span>
+                              </div>
 
-                      <div className="ride-details">
-                        <p>
-                          <strong>From:</strong>{" "}
-                          {ride.from || ride.startLocation}
-                        </p>
-                        <p>
-                          <strong>To:</strong> {ride.to || ride.destination}
-                        </p>
-                        <p>
-                          <strong>Price:</strong> {ride.price} ETH
-                        </p>
-                        <p>
-                          <strong>Available Seats:</strong>{" "}
-                          {ride.availableSeats}
-                        </p>
-                        <p>
-                          <strong>Departure:</strong>{" "}
-                          {new Date(
-                            parseInt(ride.departureTime) * 1000
-                          ).toLocaleString()}
-                        </p>
-                        <p>
-                          <strong>Passengers:</strong>{" "}
-                          {ride.passengers
-                            ? ride.passengers.length
-                            : ride.passengerCount
-                            ? ride.passengerCount
-                            : ride.passengerIds
-                            ? ride.passengerIds.length
-                            : 0}
-                        </p>
-                        <p>
-                          <strong>Status:</strong> {ride.status}
-                        </p>
-                        {ride.status === "active" && (
-                          <button
-                            className="start-ride-button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              startRide(ride.rideId);
-                            }}
-                          >
-                            Start Ride
-                          </button>
-                        )}
-                        {ride.status === "in_progress" && (
-                          <button
-                            className="complete-ride-button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              completeRide(ride.rideId);
-                            }}
-                          >
-                            Complete Ride
-                          </button>
+                              <div className="ride-details">
+                                <div className="detail-item">
+                                  <span className="detail-label">
+                                    Client ID
+                                  </span>
+                                  <span className="detail-value">
+                                    {request.clientId}
+                                  </span>
+                                </div>
+                                <div className="detail-item">
+                                  <span className="detail-label">Account</span>
+                                  <span className="detail-value">
+                                    {request.clientMetaAccount
+                                      ? `${request.clientMetaAccount.substring(
+                                          0,
+                                          8
+                                        )}...`
+                                      : "Unknown"}
+                                  </span>
+                                </div>
+                                <div className="detail-item">
+                                  <span className="detail-label">
+                                    Requested
+                                  </span>
+                                  <span className="detail-value">
+                                    {new Date(
+                                      request.requestedAt
+                                    ).toLocaleString()}
+                                  </span>
+                                </div>
+                              </div>
+
+                              <div className="request-actions">
+                                {request.status === "pending" && (
+                                  <>
+                                    <button
+                                      className="confirm-button"
+                                      onClick={() =>
+                                        confirmRideRequest(
+                                          selectedRide.rideId,
+                                          request.requestId
+                                        )
+                                      }
+                                    >
+                                      Accept
+                                    </button>
+                                    <button
+                                      className="reject-button"
+                                      onClick={() =>
+                                        rejectRideRequest(
+                                          selectedRide.rideId,
+                                          request.requestId
+                                        )
+                                      }
+                                    >
+                                      Reject
+                                    </button>
+                                  </>
+                                )}
+
+                                {request.status === "accepted" && (
+                                  <p className="request-accepted-message">
+                                    Ride request accepted
+                                  </p>
+                                )}
+
+                                {request.status === "rejected" && (
+                                  <p className="request-rejected-message">
+                                    This request has been rejected
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="no-requests-message">
+                            {selectedRide
+                              ? "No requests for this ride yet."
+                              : "Select a ride to view requests."}
+                          </div>
                         )}
                       </div>
                     </div>
-                  ))}
+                  )}
                 </div>
-              </div>
-            )}
-
-            {/* Ride Requests */}
-            {selectedRide && rideRequests.length > 0 && (
-              <div className="ride-requests">
-                <h3>Ride Requests for Ride #{selectedRide.rideId}</h3>
-
-                <div className="requests-container">
-                  {rideRequests.map((request, index) => (
-                    <div
-                      key={index}
-                      className={`request-item ${request.status}`}
-                    >
-                      <div className="request-header">
-                        <h4>{request.clientName}</h4>
-                        <span className={`status ${request.status}`}>
-                          {request.status}
-                        </span>
-                      </div>
-
-                      <div className="request-details">
-                        <p>
-                          <strong>Client ID:</strong> {request.clientId}
-                        </p>
-                        <p>
-                          <strong>Client Account:</strong>{" "}
-                          {request.clientMetaAccount
-                            ? `${request.clientMetaAccount.substring(0, 8)}...`
-                            : "Unknown"}
-                        </p>
-                        <p>
-                          <strong>Requested:</strong>{" "}
-                          {new Date(request.requestedAt).toLocaleString()}
-                        </p>
-                      </div>
-
-                      <div className="request-actions">
-                        {request.status === "pending" && (
-                          <>
-                            <button
-                              className="confirm-button"
-                              onClick={() =>
-                                confirmRideRequest(
-                                  selectedRide.rideId,
-                                  request.requestId
-                                )
-                              }
-                            >
-                              Accept
-                            </button>
-                            <button
-                              className="reject-button"
-                              onClick={() =>
-                                rejectRideRequest(
-                                  selectedRide.rideId,
-                                  request.requestId
-                                )
-                              }
-                            >
-                              Reject
-                            </button>
-                          </>
-                        )}
-
-                        {request.status === "accepted" && (
-                          <p className="request-accepted-message">
-                            Ride request accepted
-                          </p>
-                        )}
-
-                        {request.status === "rejected" && (
-                          <p className="request-rejected-message">
-                            This request has been rejected
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
+              </>
             )}
           </div>
 

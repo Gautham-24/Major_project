@@ -730,17 +730,17 @@ function ClientLocation() {
     setAvailableRides(updatedRides);
   };
 
-  // When available rides are fetched, check their request status
-  useEffect(() => {
-    if (availableRides.length > 0) {
-      updateRideStatuses();
-    }
-  }, [availableRides]);
-
   // Update the fetchAvailableRides function to include the status check
   const fetchAvailableRides = async () => {
     try {
       setIsLoading(true);
+      const clientId = localStorage.getItem("clientId");
+
+      // If no client ID, we can't check request status
+      if (!clientId) {
+        console.log("No client ID found, can't check request status");
+        return;
+      }
 
       const response = await axios.get("http://localhost:8080/api/rides");
 
@@ -748,24 +748,45 @@ function ClientLocation() {
         // Get rides from response
         const rides = response.data.rides;
 
-        // Only show rides with status "active" - this is the issue
-        // We should be filtering by statuses that aren't appropriate for the available list
+        // Only show rides with status "active"
         const activeRides = rides.filter((ride) => ride.status === "active");
 
-        // Check request status for each ride
-        const ridesWithStatus = await Promise.all(
-          activeRides.map(async (ride) => {
-            const requestStatus = await getRideRequestStatus(ride.rideId);
-            return { ...ride, requestStatus };
-          })
+        // Instead of checking each ride individually via separate API calls,
+        // we'll batch fetch all request statuses once
+        // This will prevent the infinite loop of API calls
+        const clientRequestsResponse = await axios.get(
+          `http://localhost:8080/api/client/${clientId}/ride-requests`
         );
+
+        let requestStatusMap = {};
+
+        // If successful, create a map of rideId -> status
+        if (
+          clientRequestsResponse.data &&
+          clientRequestsResponse.data.success
+        ) {
+          const requests = clientRequestsResponse.data.requests || [];
+          requests.forEach((request) => {
+            requestStatusMap[request.rideId] = request.status;
+          });
+        }
+
+        // Now use the map to add status to each ride
+        const ridesWithStatus = activeRides.map((ride) => {
+          return {
+            ...ride,
+            requestStatus: requestStatusMap[ride.rideId] || null,
+          };
+        });
 
         setAvailableRides(ridesWithStatus);
       } else {
         console.error("Error fetching rides:", response.data.message);
+        setAvailableRides([]);
       }
     } catch (error) {
       console.error("Error fetching available rides:", error);
+      setAvailableRides([]);
     } finally {
       setIsLoading(false);
     }

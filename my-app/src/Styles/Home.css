@@ -1,12 +1,27 @@
 .HomeMainComponent {
-  background-color: rgb(18, 17, 22);
+  background-color: var(--dark-bg);
   width: 100%;
+  min-height: 100vh;
 }
 
 .HomeCar-Image {
   width: 600px;
   height: 400px;
   object-fit: contain;
+  filter: drop-shadow(0 10px 20px rgba(0, 0, 0, 0.4));
+  animation: float 6s ease-in-out infinite;
+}
+
+@keyframes float {
+  0% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-20px);
+  }
+  100% {
+    transform: translateY(0px);
+  }
 }
 
 .HomeInnerComponent {
@@ -50,7 +65,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  color: white;
+  color: var(--text-light);
   margin: 2rem 0;
 }
 
@@ -62,7 +77,7 @@
   animation-duration: 2s;
   animation-iteration-count: infinite;
   animation-direction: alternate;
-  animation-timing-function: linear;
+  animation-timing-function: ease-in-out;
 }
 
 .Down-Arrow-1 {
@@ -71,33 +86,64 @@
 
 @keyframes colorChange {
   0% {
-    color: white;
+    color: var(--text-light);
   }
   100% {
-    color: #00ddeb;
+    color: var(--secondary);
   }
 }
 
 .Part2MainContainer {
-  padding: 3rem 0;
-  background: rgb(18, 17, 22);
-  color: white;
+  padding: 5rem 0;
+  background: var(--dark-card);
+  color: var(--text-light);
+  position: relative;
+  overflow: hidden;
+}
+
+.Part2MainContainer::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    45deg,
+    rgba(82, 98, 234, 0.05) 0%,
+    rgba(22, 230, 220, 0.05) 100%
+  );
+  z-index: 1;
+}
+
+.Part2MainContainer > * {
+  position: relative;
+  z-index: 2;
 }
 
 .Part2MainContainer h1 {
   text-align: center;
   margin-bottom: 2rem;
-  color: rgb(232, 248, 3);
+  color: var(--accent);
+  font-size: 2.5rem;
+  font-weight: 700;
 }
 
 .Part2-Para-Container {
   max-width: 800px;
   margin: 0 auto 3rem;
   text-align: center;
+  background-color: rgba(15, 15, 18, 0.5);
+  backdrop-filter: blur(10px);
+  padding: 2rem;
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow);
 }
 
 .Part2-Para {
-  line-height: 1.6;
+  line-height: 1.8;
+  font-size: 1.1rem;
+  color: var(--text-light);
 }
 
 .Globe-Container {
@@ -164,8 +210,8 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 4rem 0;
-  color: white;
+  padding: 6rem 0 4rem;
+  color: var(--text-light);
 }
 
 .Home-Content-Left {
@@ -176,13 +222,19 @@
 .Home-Content-Left h1 {
   font-size: 3.5rem;
   margin-bottom: 1.5rem;
-  color: rgb(232, 248, 3);
+  background: linear-gradient(90deg, var(--accent), var(--secondary));
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  font-weight: 700;
+  letter-spacing: -1px;
 }
 
 .Home-Content-Left p {
   font-size: 1.2rem;
-  line-height: 1.6;
+  line-height: 1.8;
   margin-bottom: 2.5rem;
+  color: var(--text-muted);
 }
 
 .Home-Content-Right {
@@ -195,60 +247,81 @@
 .home-buttons {
   display: flex;
   flex-direction: column;
-  gap: 2rem;
+  gap: 2.5rem;
 }
 
 .driver-section,
 .client-section {
   display: flex;
   flex-direction: column;
-  gap: 0.8rem;
+  gap: 1rem;
+  background-color: rgba(25, 25, 35, 0.5);
+  padding: 1.5rem;
+  border-radius: var(--border-radius);
+  transition: var(--transition);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.driver-section:hover,
+.client-section:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
 }
 
 .driver-section h3,
 .client-section h3 {
   font-size: 1.3rem;
-  color: rgb(232, 248, 3);
+  color: var(--accent);
+  font-weight: 600;
 }
 
 .button-group {
   display: flex;
   gap: 1rem;
+  width: 100%;
 }
 
 .Home-Button {
-  background-color: rgb(232, 248, 3);
-  color: black;
+  background-color: var(--primary);
+  color: var(--text-light);
   border: none;
   padding: 0.8rem 1.5rem;
   font-size: 1rem;
   text-decoration: none;
-  border-radius: 4px;
+  border-radius: var(--border-radius);
   font-weight: 600;
-  transition: all 0.3s ease;
+  transition: var(--transition);
   display: inline-block;
+  flex: 1;
+  text-align: center;
+  box-shadow: 0 4px 15px rgba(82, 98, 234, 0.3);
 }
 
 .Home-Button:hover {
-  background-color: rgb(255, 255, 255);
-  transform: translateY(-2px);
+  background-color: var(--primary-light);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 25px rgba(82, 98, 234, 0.4);
 }
 
 .register-button {
   background-color: transparent;
-  border: 2px solid rgb(232, 248, 3);
-  color: rgb(232, 248, 3);
+  border: 2px solid var(--primary);
+  color: var(--primary);
+  box-shadow: none;
 }
 
 .register-button:hover {
-  background-color: rgba(232, 248, 3, 0.1);
-  color: rgb(232, 248, 3);
+  background-color: rgba(82, 98, 234, 0.1);
+  color: var(--primary-light);
+  border-color: var(--primary-light);
 }
 
 /* Media Queries */
 @media (max-width: 1200px) {
   .Home-Content {
-    padding: 3rem 0;
+    padding: 4rem 0;
   }
 
   .Home-Content-Left h1 {
@@ -269,12 +342,10 @@
   }
 
   .Home-Content-Left {
-    order: 2;
     max-width: 100%;
   }
 
   .Home-Content-Right {
-    order: 1;
     justify-content: center;
   }
 
@@ -283,30 +354,30 @@
   }
 
   .Part2-Para-Container {
-    padding: 0 2rem;
+    max-width: 600px;
   }
 }
 
 @media (max-width: 768px) {
   .HomeCar-Image {
     width: 400px;
-    height: 300px;
+    height: 280px;
   }
 
-  .ServicesContainer {
-    gap: 2rem;
+  .driver-section,
+  .client-section {
+    padding: 1.25rem;
   }
 }
 
 @media (max-width: 576px) {
   .HomeCar-Image {
     width: 300px;
-    height: 250px;
+    height: 220px;
   }
 
   .button-group {
     flex-direction: column;
-    gap: 1rem;
   }
 
   .Home-Content-Left h1 {
@@ -314,11 +385,14 @@
   }
 
   .Home-Button {
-    width: 100%;
-    text-align: center;
+    padding: 0.7rem 1rem;
   }
 
   .Part2-Para {
+    font-size: 1rem;
+  }
+
+  .HomeInnerComponent {
     padding: 0 1rem;
   }
 }

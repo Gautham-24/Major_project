@@ -467,7 +467,7 @@ class BlockchainService {
         console.error(`Ride ${rideId} not found`);
         return { success: false, error: "Ride not found" };
       }
-      console.log(`Found ride: ${JSON.stringify(ride)}`);
+      // console.log(`Found ride: ${JSON.stringify(ride)}`);
 
       // Convert the price from ETH to wei
       let priceInWei;
@@ -774,7 +774,7 @@ class BlockchainService {
         await this.ensureInitialized();
       }
 
-      console.log(`Getting details for ride ${rideId}`);
+      // console.log(`Getting details for ride ${rideId}`);
 
       // Try using rides mapping directly first
       try {
@@ -782,16 +782,16 @@ class BlockchainService {
 
         // Check if we got a valid ride (id > 0)
         if (ride && parseInt(ride.id) > 0) {
-          console.log(`Found ride ${rideId} using rides mapping`);
+          // console.log(`Found ride ${rideId} using rides mapping`);
 
           // Enhance the ride object with passenger information
           try {
             const passengerIds = await this.contract.methods
               .getRidePassengers(rideId)
               .call();
-            console.log(
-              `Found ${passengerIds.length} passengers for ride ${rideId}`
-            );
+            // console.log(
+            //   `Found ${passengerIds.length} passengers for ride ${rideId}`
+            // );
 
             // Add the passenger IDs to the ride object
             ride.passengerIds = passengerIds;
@@ -848,7 +848,7 @@ class BlockchainService {
               const rideRequests = await this.contract.methods
                 .getRideRequests(rideId)
                 .call();
-              console.log(`Ride ${rideId} has ${rideRequests.length} requests`);
+              // console.log(`Ride ${rideId} has ${rideRequests.length} requests`);
 
               // Get details for each request
               const requestDetails = [];
@@ -874,9 +874,9 @@ class BlockchainService {
                 (req) => req.status === "accepted"
               );
               if (acceptedRequests.length > 0) {
-                console.log(
-                  `Ride ${rideId} has ${acceptedRequests.length} accepted requests`
-                );
+                // console.log(
+                //   `Ride ${rideId} has ${acceptedRequests.length} accepted requests`
+                // );
 
                 // If we don't have passenger IDs yet, initialize the array
                 if (!ride.passengerIds) {
@@ -886,17 +886,17 @@ class BlockchainService {
                 // Add client IDs from accepted requests
                 for (const request of acceptedRequests) {
                   if (ride.passengerIds.indexOf(request.clientId) === -1) {
-                    console.log(
-                      `Adding client ${request.clientId} as passenger for ride ${rideId}`
-                    );
+                    // console.log(
+                    //   // `Adding client ${request.clientId} as passenger for ride ${rideId}`
+                    // );
                     ride.passengerIds.push(request.clientId);
                   }
                 }
               }
             } catch (requestsError) {
-              console.log(
-                `Error getting ride requests: ${requestsError.message}`
-              );
+              // console.log(
+              //   `Error getting ride requests: ${requestsError.message}`
+              // );
             }
           }
 
@@ -974,9 +974,9 @@ class BlockchainService {
         throw new Error("Blockchain service not initialized");
       }
 
-      console.log(
-        `Checking payment status for ride ${rideId} and client ${clientId}`
-      );
+      // console.log(
+      //   `Checking payment status for ride ${rideId} and client ${clientId}`
+      // );
 
       // Get ride details
       const ride = await this.getRide(rideId);
@@ -1036,9 +1036,9 @@ class BlockchainService {
         passengerInfo.paid === true || passengerInfo.paid === "true";
       const paymentStatus = isPaid ? "paid" : "payment_pending";
 
-      console.log(
-        `Payment status for client ${clientId} on ride ${rideId}: ${paymentStatus}`
-      );
+      // console.log(
+      //   `Payment status for client ${clientId} on ride ${rideId}: ${paymentStatus}`
+      // );
       return { paid: isPaid, status: paymentStatus };
     } catch (error) {
       console.error(
@@ -1307,6 +1307,64 @@ class BlockchainService {
       return {
         success: false,
         error: `Failed to record payment: ${error.message}`,
+      };
+    }
+  }
+
+  /**
+   * Get all ride requests for a specific client
+   * @param {string} clientId - The ID of the client
+   * @returns {Promise<{success: boolean, requests: Array, error: string}>}
+   */
+  async getClientRequests(clientId) {
+    try {
+      if (!this.isInitialized) {
+        await this.initialize();
+      }
+
+      // Get all ride IDs first to search through
+      const rideCount = await this.contract.methods.getRideCount().call();
+      const allRideRequests = [];
+
+      // Iterate through all rides (could be optimized further with indexing)
+      for (let i = 1; i <= rideCount; i++) {
+        try {
+          const rideId = i.toString();
+          const requestsResponse = await this.getRideRequests(rideId);
+
+          if (requestsResponse.success && requestsResponse.requests) {
+            // Filter requests to find those from this client
+            const clientRequests = requestsResponse.requests.filter(
+              (request) => request.clientId.toString() === clientId.toString()
+            );
+
+            // Add ride ID to each request and add to results
+            clientRequests.forEach((request) => {
+              allRideRequests.push({
+                ...request,
+                rideId: rideId,
+              });
+            });
+          }
+        } catch (error) {
+          console.error(
+            `Error processing ride ${i} for client requests:`,
+            error
+          );
+          // Continue to next ride even if one fails
+        }
+      }
+
+      return {
+        success: true,
+        requests: allRideRequests,
+      };
+    } catch (error) {
+      console.error("Error getting client ride requests:", error);
+      return {
+        success: false,
+        requests: [],
+        error: error.message,
       };
     }
   }

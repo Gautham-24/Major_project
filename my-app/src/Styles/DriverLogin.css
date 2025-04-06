@@ -2,8 +2,8 @@
 .DriverLogin-Container,
 .ClientLogin-Container {
   display: flex;
-  height: calc(100vh - 80px); /* Adjust based on header height */
-  background-color: #f5f7fa;
+  min-height: calc(100vh - 80px);
+  background-color: var(--dark-bg);
 }
 
 .DriverLogin-Left,
@@ -17,112 +17,192 @@
 
 .DriverLogin-Left-Content,
 .ClientLogin-Left-Content {
-  max-width: 400px;
+  max-width: 450px;
   width: 100%;
-  text-align: center;
+  padding: 3rem;
+  background-color: var(--dark-card);
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow);
+  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .DriverLogin-Left-Content h2,
 .ClientLogin-Left-Content h2 {
-  font-size: 2.5rem;
-  margin-bottom: 1rem;
-  color: #333;
+  font-size: 2rem;
+  margin-bottom: 1.5rem;
+  color: var(--text-light);
+  font-weight: 700;
+  text-align: center;
 }
 
 .DriverLogin-Left-Content p,
 .ClientLogin-Left-Content p {
-  font-size: 1.1rem;
-  color: #666;
+  font-size: 1rem;
   margin-bottom: 2rem;
+  color: var(--text-muted);
+  text-align: center;
+  line-height: 1.6;
 }
 
 .DriverLogin-Button,
 .ClientLogin-Button {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  background-color: #f6851b;
-  color: white;
+  width: 100%;
+  padding: 1rem;
   border: none;
-  padding: 12px 20px;
-  border-radius: 5px;
+  border-radius: var(--border-radius);
+  background-color: var(--primary);
+  color: var(--text-light);
   font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
-  transition: background-color 0.3s;
-  width: 100%;
-  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  transition: var(--transition);
+  box-shadow: 0 4px 15px rgba(82, 98, 234, 0.3);
 }
 
 .DriverLogin-Button:hover,
 .ClientLogin-Button:hover {
-  background-color: #e67e22;
+  background-color: var(--primary-light);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 25px rgba(82, 98, 234, 0.4);
 }
 
 .DriverLogin-Button:disabled,
 .ClientLogin-Button:disabled {
-  background-color: #ccc;
+  background-color: var(--text-muted);
   cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
 
 .MetaMask-Logo {
-  width: 24px;
-  height: 24px;
+  width: 25px;
+  height: 25px;
 }
 
 .DriverLogin-Right,
 .ClientLogin-Right {
   flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(
+    135deg,
+    rgba(82, 98, 234, 0.1) 0%,
+    rgba(22, 230, 220, 0.1) 100%
+  );
+  position: relative;
   overflow: hidden;
+}
+
+.DriverLogin-Right::before,
+.ClientLogin-Right::before {
+  content: "";
+  position: absolute;
+  width: 500px;
+  height: 500px;
+  background: radial-gradient(
+    circle,
+    rgba(82, 98, 234, 0.2) 0%,
+    rgba(15, 15, 18, 0) 70%
+  );
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  z-index: 1;
 }
 
 .DriverLogin-Image,
 .ClientLogin-Image {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
+  width: 80%;
+  max-width: 500px;
+  object-fit: contain;
+  position: relative;
+  z-index: 2;
+  filter: drop-shadow(0 20px 30px rgba(0, 0, 0, 0.25));
+  animation: float 6s ease-in-out infinite;
 }
 
 .error-message {
-  color: #d32f2f;
+  color: #ff5757;
+  background-color: rgba(255, 87, 87, 0.1);
+  border-radius: var(--border-radius);
+  padding: 0.75rem;
   margin-top: 1rem;
-  font-size: 0.9rem;
+  text-align: center;
+  border-left: 3px solid #ff5757;
 }
 
 .registration-link {
   margin-top: 2rem;
+  text-align: center;
+}
+
+.registration-link p {
+  margin-bottom: 0;
   font-size: 0.9rem;
-  color: #666;
 }
 
 .registration-link a {
-  color: #f6851b;
-  text-decoration: none;
-  font-weight: 600;
+  color: var(--secondary);
+  text-decoration: underline;
+  transition: var(--transition);
 }
 
 .registration-link a:hover {
-  text-decoration: underline;
+  color: var(--primary-light);
 }
 
-/* Media queries for responsiveness */
+@keyframes float {
+  0% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-15px);
+  }
+  100% {
+    transform: translateY(0px);
+  }
+}
+
 @media (max-width: 992px) {
   .DriverLogin-Container,
   .ClientLogin-Container {
     flex-direction: column;
   }
 
-  .DriverLogin-Left,
-  .ClientLogin-Left {
-    order: 2;
-    padding: 2rem 1rem;
-  }
-
   .DriverLogin-Right,
   .ClientLogin-Right {
-    order: 1;
-    height: 200px;
+    min-height: 300px;
+    order: -1;
+  }
+
+  .DriverLogin-Image,
+  .ClientLogin-Image {
+    width: 60%;
+    max-width: 400px;
+  }
+}
+
+@media (max-width: 576px) {
+  .DriverLogin-Left-Content,
+  .ClientLogin-Left-Content {
+    padding: 2rem 1.5rem;
+  }
+
+  .DriverLogin-Left-Content h2,
+  .ClientLogin-Left-Content h2 {
+    font-size: 1.75rem;
+  }
+
+  .DriverLogin-Image,
+  .ClientLogin-Image {
+    width: 80%;
+    max-width: 300px;
   }
 }
 

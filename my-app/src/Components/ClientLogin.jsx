@@ -5,6 +5,8 @@ import { useNavigate } from "react-router-dom";
 import "../Styles/DriverLogin.css";
 import ClientLogo from "../Assets/Images/Client-Logo.jpg";
 import axios from "axios";
+import { FaEthereum } from "react-icons/fa";
+import { Link } from "react-router-dom";
 
 // Define server URLs with fallbacks - updated to include /api prefix
 const SERVER_URLS = ["http://localhost:8080"];
@@ -129,7 +131,7 @@ function ClientLogin() {
             <div className="registration-link">
               <p>
                 New to RideApp?{" "}
-                <a href="/ClientRegistration">Register as a Rider</a>
+                <Link to="/ClientRegistration">Register as a Rider</Link>
               </p>
             </div>
           </div>
