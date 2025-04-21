@@ -1322,6 +1322,16 @@ class BlockchainService {
         await this.initialize();
       }
 
+      // Check if the getRideCount method exists before calling it
+      if (!this.contract.methods.getRideCount) {
+        // console.warn("getRideCount method is not available in the contract");
+        return {
+          success: true,
+          requests: [],
+          error: "getRideCount method is not available in the contract",
+        };
+      }
+
       // Get all ride IDs first to search through
       const rideCount = await this.contract.methods.getRideCount().call();
       const allRideRequests = [];
@@ -1365,6 +1375,220 @@ class BlockchainService {
         success: false,
         requests: [],
         error: error.message,
+      };
+    }
+  }
+
+  /**
+   * Rate a driver for a specific ride
+   * @param {string} clientAccount - Client's wallet address
+   * @param {number} rideId - ID of the ride
+   * @param {number} score - Rating score (1-5)
+   * @returns {Promise<{success: boolean, error: string}>}
+   */
+  async rateDriver(clientAccount, rideId, score) {
+    try {
+      if (!this.isInitialized) {
+        await this.initialize();
+      }
+
+      // Validate input
+      if (score < 1 || score > 5) {
+        return {
+          success: false,
+          error: "Rating must be between 1 and 5",
+        };
+      }
+
+      console.log(
+        `Rating driver for ride ${rideId} with score ${score} from account ${clientAccount}`
+      );
+
+      // Call the smart contract method
+      const result = await this.contract.methods
+        .rateDriver(rideId, score)
+        .send({
+          from: clientAccount,
+          gas: 3000000,
+        });
+
+      console.log("Rating submitted successfully:", result.transactionHash);
+
+      const ratingId =
+        result.events && result.events.RatingSubmitted
+          ? result.events.RatingSubmitted.returnValues.ratingId
+          : null;
+
+      return {
+        success: true,
+        ratingId,
+        transactionHash: result.transactionHash,
+      };
+    } catch (error) {
+      console.error("Error rating driver:", error.message);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Get a driver's average rating
+   * @param {number} driverId - ID of the driver
+   * @returns {Promise<{success: boolean, averageRating: number, totalRatings: number, error: string}>}
+   */
+  async getDriverAverageRating(driverId) {
+    try {
+      if (!this.isInitialized) {
+        await this.initialize();
+      }
+
+      // console.log(`Getting average rating for driver ${driverId}`);
+
+      // Handle the case where the contract method doesn't return an array properly
+      try {
+        const result = await this.contract.methods
+          .getDriverRating(driverId)
+          .call();
+        let totalRating = 0;
+        let ratingCount = 0;
+
+        // Check if result is an array with two elements
+        if (Array.isArray(result) && result.length === 2) {
+          totalRating = result[0];
+          ratingCount = result[1];
+        } else if (typeof result === "object") {
+          // Handle case where result is returned as an object with numbered keys
+          totalRating = result["0"] || 0;
+          ratingCount = result["1"] || 0;
+        }
+
+        let averageRating = 0;
+        if (parseInt(ratingCount) > 0) {
+          averageRating = (
+            parseInt(totalRating) / parseInt(ratingCount)
+          ).toFixed(1);
+        }
+
+        return {
+          success: true,
+          averageRating: parseFloat(averageRating),
+          totalRatings: parseInt(ratingCount),
+        };
+      } catch (error) {
+        console.error(`Error calling getDriverRating: ${error.message}`);
+        // Return default values if the contract call fails
+        return {
+          success: true,
+          averageRating: 0,
+          totalRatings: 0,
+        };
+      }
+    } catch (error) {
+      console.error(`Error getting driver rating: ${error.message}`);
+      return {
+        success: false,
+        averageRating: 0,
+        totalRatings: 0,
+        error: error.message,
+      };
+    }
+  }
+
+  /**
+   * Get all ratings for a specific driver
+   * @param {number} driverId - ID of the driver
+   * @returns {Promise<{success: boolean, ratings: Array, error: string}>}
+   */
+  async getDriverRatings(driverId) {
+    try {
+      if (!this.isInitialized) {
+        await this.initialize();
+      }
+
+      // console.log(`Getting all ratings for driver ${driverId}`);
+
+      const ratingIds = await this.contract.methods
+        .getDriverRatings(driverId)
+        .call();
+
+      const ratingsDetail = await Promise.all(
+        ratingIds.map(async (ratingId) => {
+          const rating = await this.contract.methods.ratings(ratingId).call();
+          return this.formatRating(rating);
+        })
+      );
+
+      return {
+        success: true,
+        ratings: ratingsDetail,
+      };
+    } catch (error) {
+      console.error(`Error getting driver ratings: ${error.message}`);
+      return {
+        success: false,
+        ratings: [],
+        error: error.message,
+      };
+    }
+  }
+
+  /**
+   * Get all ratings for a specific ride
+   * @param {number} rideId - ID of the ride
+   * @returns {Promise<{success: boolean, ratings: Array, error: string}>}
+   */
+  async getRideRatings(rideId) {
+    try {
+      if (!this.isInitialized) {
+        await this.initialize();
+      }
+
+      // console.log(`Getting all ratings for ride ${rideId}`);
+
+      const ratingIds = await this.contract.methods
+        .getRideRatings(rideId)
+        .call();
+
+      const ratingsDetail = await Promise.all(
+        ratingIds.map(async (ratingId) => {
+          const rating = await this.contract.methods.ratings(ratingId).call();
+          return this.formatRating(rating);
+        })
+      );
+
+      return {
+        success: true,
+        ratings: ratingsDetail,
+      };
+    } catch (error) {
+      console.error(`Error getting ride ratings: ${error.message}`);
+      return {
+        success: false,
+        ratings: [],
+        error: error.message,
+      };
+    }
+  }
+
+  /**
+   * Format a rating object from the blockchain
+   * @param {Object} rating - The rating object from the blockchain
+   * @returns {Object} - Formatted rating object
+   */
+  formatRating(rating) {
+    try {
+      return {
+        id: parseInt(rating.id),
+        rideId: parseInt(rating.rideId),
+        driverId: parseInt(rating.driverId),
+        clientId: parseInt(rating.clientId),
+        score: parseInt(rating.score),
+        timestamp: new Date(parseInt(rating.timestamp) * 1000).toISOString(),
+      };
+    } catch (error) {
+      console.error("Error formatting rating:", error.message);
+      return {
+        id: parseInt(rating.id),
+        error: "Error formatting rating data",
       };
     }
   }

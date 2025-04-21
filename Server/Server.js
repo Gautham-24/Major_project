@@ -1622,28 +1622,214 @@ app.get("/api/client/:clientId/ride-requests", async (req, res) => {
       });
     }
 
-    // Get the client's ride requests from blockchain
-    const clientRequests = await blockchainService.getClientRequests(clientId);
+    // Try to get the client's ride requests from blockchain
+    try {
+      const clientRequests = await blockchainService.getClientRequests(
+        clientId
+      );
 
-    // If no error but no requests found
-    if (clientRequests.requests && clientRequests.requests.length === 0) {
+      // If no error but no requests found
+      if (clientRequests.requests && clientRequests.requests.length === 0) {
+        return res.status(200).json({
+          success: true,
+          message: "No ride requests found for this client",
+          requests: [],
+        });
+      }
+
+      // Return all the client's requests
       return res.status(200).json({
         success: true,
-        message: "No ride requests found for this client",
+        requests: clientRequests.requests || [],
+      });
+    } catch (blockchainError) {
+      // Handle the case where getRideCount method doesn't exist
+      console.error(
+        "Blockchain error getting client ride requests:",
+        blockchainError.message
+      );
+
+      // Return an empty array when the blockchain service fails
+      return res.status(200).json({
+        success: true,
+        message:
+          "Unable to get ride requests from blockchain - returning empty list",
         requests: [],
+        error: blockchainError.message,
       });
     }
-
-    // Return all the client's requests
-    return res.status(200).json({
-      success: true,
-      requests: clientRequests.requests || [],
-    });
   } catch (error) {
     console.error("Error getting client ride requests:", error.message);
     return res.status(500).json({
       success: false,
       message: "Error retrieving client ride requests",
+      error: error.message,
+    });
+  }
+});
+
+// Submit a rating for a driver
+app.post("/api/rides/:rideId/rate", async (req, res) => {
+  try {
+    const { rideId } = req.params;
+    const { clientAccount, score } = req.body;
+
+    if (!clientAccount || !rideId || !score) {
+      return res.status(400).json({
+        success: false,
+        message: "Client account, ride ID, and score are required",
+      });
+    }
+
+    // Validate score
+    const scoreNum = parseInt(score);
+    if (isNaN(scoreNum) || scoreNum < 1 || scoreNum > 5) {
+      return res.status(400).json({
+        success: false,
+        message: "Score must be a number between 1 and 5",
+      });
+    }
+
+    // Submit the rating through the blockchain service
+    const result = await blockchainService.rateDriver(
+      clientAccount,
+      rideId,
+      scoreNum
+    );
+
+    if (result.success) {
+      return res.status(200).json({
+        success: true,
+        message: "Rating submitted successfully",
+        ratingId: result.ratingId,
+        transactionHash: result.transactionHash,
+      });
+    } else {
+      return res.status(500).json({
+        success: false,
+        message: "Failed to submit rating",
+        error: result.error,
+      });
+    }
+  } catch (error) {
+    console.error("Error submitting rating:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Server error when submitting rating",
+      error: error.message,
+    });
+  }
+});
+
+// Get average rating for a driver
+app.get("/api/drivers/:driverId/rating", async (req, res) => {
+  try {
+    const { driverId } = req.params;
+
+    if (!driverId) {
+      return res.status(400).json({
+        success: false,
+        message: "Driver ID is required",
+      });
+    }
+
+    // Get the driver's rating
+    const ratingResult = await blockchainService.getDriverAverageRating(
+      driverId
+    );
+
+    if (ratingResult.success) {
+      return res.status(200).json({
+        success: true,
+        averageRating: ratingResult.averageRating,
+        totalRatings: ratingResult.totalRatings,
+      });
+    } else {
+      return res.status(500).json({
+        success: false,
+        message: "Failed to get driver rating",
+        error: ratingResult.error,
+      });
+    }
+  } catch (error) {
+    console.error("Error getting driver rating:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Server error when getting driver rating",
+      error: error.message,
+    });
+  }
+});
+
+// Get all ratings for a driver
+app.get("/api/drivers/:driverId/ratings", async (req, res) => {
+  try {
+    const { driverId } = req.params;
+
+    if (!driverId) {
+      return res.status(400).json({
+        success: false,
+        message: "Driver ID is required",
+      });
+    }
+
+    // Get all ratings for the driver
+    const ratingsResult = await blockchainService.getDriverRatings(driverId);
+
+    if (ratingsResult.success) {
+      return res.status(200).json({
+        success: true,
+        ratings: ratingsResult.ratings,
+      });
+    } else {
+      return res.status(500).json({
+        success: false,
+        message: "Failed to get driver ratings",
+        error: ratingsResult.error,
+      });
+    }
+  } catch (error) {
+    console.error("Error getting driver ratings:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Server error when getting driver ratings",
+      error: error.message,
+    });
+  }
+});
+
+// Get all ratings for a ride
+app.get("/api/rides/:rideId/ratings", async (req, res) => {
+  try {
+    const { rideId } = req.params;
+
+    if (!rideId) {
+      return res.status(400).json({
+        success: false,
+        message: "Ride ID is required",
+      });
+    }
+
+    // Get all ratings for the ride
+    const ratingsResult = await blockchainService.getRideRatings(rideId);
+
+    if (ratingsResult.success) {
+      return res.status(200).json({
+        success: true,
+        ratings: ratingsResult.ratings,
+      });
+    } else {
+      return res.status(500).json({
+        success: false,
+        message: "Failed to get ride ratings",
+        error: ratingsResult.error,
+      });
+    }
+  } catch (error) {
+    console.error("Error getting ride ratings:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Server error when getting ride ratings",
       error: error.message,
     });
   }

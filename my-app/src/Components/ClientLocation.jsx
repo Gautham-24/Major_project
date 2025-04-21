@@ -15,6 +15,16 @@ import Logo from "../Assets/Images/Logo.png";
 import ChainRideContract from "../Contracts/ChainRideContract.json";
 import Web3 from "web3";
 import { toast } from "react-hot-toast";
+import {
+  FaUser,
+  FaSignOutAlt,
+  FaTachometerAlt,
+  FaCarAlt,
+  FaClipboardList,
+  FaSearch,
+} from "react-icons/fa";
+import RatingComponent from "./RatingComponent";
+import StarDisplay from "./StarDisplay";
 
 function ClientLocation() {
   const navigate = useNavigate();
@@ -61,6 +71,42 @@ function ClientLocation() {
   const [showMap, setShowMap] = useState(false);
   const [loading, setLoading] = useState(true);
   const [paymentStatus, setPaymentStatus] = useState({});
+
+  // Add new state for navigation
+  const [activeSection, setActiveSection] = useState("availableRides");
+
+  // Add a new state for the rating modal
+  const [showRatingModal, setShowRatingModal] = useState(false);
+  const [rideToRate, setRideToRate] = useState(null);
+
+  // Fetch client profile data on component mount
+  useEffect(() => {
+    const fetchClientProfile = async () => {
+      try {
+        const metaAccount = localStorage.getItem("metaAccount");
+        if (!metaAccount) {
+          navigate("/ClientLogin");
+          return;
+        }
+
+        // Fetch client data
+        const response = await axios.get(
+          `http://localhost:8080/api/client-by-account/${metaAccount}`,
+          { withCredentials: true }
+        );
+
+        if (response.data.success && response.data.client) {
+          setClientData(response.data.client);
+        }
+        setLoading(false); // Set loading to false after client data is fetched
+      } catch (err) {
+        console.error("Error fetching client profile:", err);
+        setLoading(false); // Also set loading to false on error
+      }
+    };
+
+    fetchClientProfile();
+  }, [navigate]);
 
   const fetchMetaAccount = async () => {
     if (window.ethereum) {
@@ -586,6 +632,9 @@ function ClientLocation() {
         }
       } catch (error) {
         console.error("Error in client initialization:", error);
+      } finally {
+        // Make sure to set loading to false regardless of success or failure
+        setLoading(false);
       }
     };
 
@@ -797,6 +846,7 @@ function ClientLocation() {
     try {
       setIsLoading(true);
       const metaAccount = localStorage.getItem("metaAccount");
+      const clientId = localStorage.getItem("clientId");
 
       if (!metaAccount) {
         console.error("MetaAccount not found in localStorage");
@@ -832,11 +882,12 @@ function ClientLocation() {
             // For completed rides, check payment status
             let paymentRequired = false;
             let isPaid = true;
+            let hasRated = false;
+            let userRating = 0;
 
             if (ride.status === "completed") {
               try {
                 // Get client ID
-                const clientId = localStorage.getItem("clientId");
                 if (clientId) {
                   // Check payment status
                   const paymentStatusResponse = await axios.get(
@@ -846,6 +897,31 @@ function ClientLocation() {
                   if (paymentStatusResponse.data) {
                     isPaid = paymentStatusResponse.data.paid === true;
                     paymentRequired = !isPaid;
+                  }
+
+                  // Check if ride has been rated by this client
+                  try {
+                    const ratingsResponse = await axios.get(
+                      `http://localhost:8080/api/rides/${ride.rideId}/ratings`
+                    );
+
+                    if (
+                      ratingsResponse.data.success &&
+                      ratingsResponse.data.ratings
+                    ) {
+                      const userRatingObj = ratingsResponse.data.ratings.find(
+                        (rating) =>
+                          rating.clientId &&
+                          rating.clientId.toString() === clientId.toString()
+                      );
+
+                      if (userRatingObj) {
+                        hasRated = true;
+                        userRating = userRatingObj.score || 0;
+                      }
+                    }
+                  } catch (ratingError) {
+                    console.log(`Error checking ratings: ${ratingError}`);
                   }
                 }
               } catch (err) {
@@ -871,6 +947,8 @@ function ClientLocation() {
               ).toLocaleTimeString(),
               paymentPending: paymentRequired,
               isPaid: isPaid,
+              hasRated: hasRated,
+              userRating: userRating,
             };
           })
         );
@@ -889,7 +967,7 @@ function ClientLocation() {
     }
   };
 
-  // Update the renderRideStatus function
+  // Update the renderRideStatus function to include a rate button for completed rides
   const renderRideStatus = (ride) => {
     // First priority: Payment status for completed rides
     if (ride.status === "completed") {
@@ -898,8 +976,27 @@ function ClientLocation() {
           <span className="ride-status payment-pending">Payment Required</span>
         );
       } else if (ride.isPaid) {
+        // Always show the rate button for completed and paid rides
         return (
-          <span className="ride-status completed">Ride Completed & Paid</span>
+          <div className="ride-completed-actions">
+            <span className="ride-status completed">Ride Completed & Paid</span>
+            <button
+              className="rate-ride-button"
+              style={{
+                backgroundColor: "#4caf50",
+                color: "white",
+                padding: "10px",
+                width: "100%",
+                fontSize: "14px",
+              }}
+              onClick={(e) => {
+                e.stopPropagation();
+                openRatingModal(ride);
+              }}
+            >
+              Rate Driver
+            </button>
+          </div>
         );
       }
       return <span className="ride-status completed">Ride Completed</span>;
@@ -1200,14 +1297,32 @@ function ClientLocation() {
           const txHash = response.data.transactionHash || "local";
           alert(`Payment successful! Transaction: ${txHash}`);
 
+          // Update ride status locally
+          const updatedRide = {
+            ...ride,
+            isPaid: true,
+            paymentPending: false,
+          };
+
+          // Update in myRides array
+          setMyRides((prevRides) =>
+            prevRides.map((r) => (r.rideId === ride.rideId ? updatedRide : r))
+          );
+
+          // If this is the selected ride, update it too
+          if (selectedRide && selectedRide.rideId === ride.rideId) {
+            setSelectedRide(updatedRide);
+          }
+
           // Update payment status locally
           setPaymentStatus((prev) => ({
             ...prev,
             [ride.rideId]: { paid: true, status: "completed" },
           }));
 
-          // Refresh the rides list
-          await fetchMyRides();
+          // Open the rating modal after successful payment
+          setRideToRate(updatedRide);
+          setShowRatingModal(true);
         } else {
           alert("Payment failed: " + (response.data.error || "Unknown error"));
         }
@@ -1233,250 +1348,514 @@ function ClientLocation() {
         error.response?.data?.error ||
         error.response?.data?.message ||
         error.message ||
-        "Unknown error occurred";
-
+        "Unknown error";
       alert("Error making payment: " + errorMessage);
       setIsLoading(false);
     }
   };
 
-  return (
-    <>
-      <div className={`ClientMapMainContainer ${showMap ? "show-map" : ""}`}>
-        <div className="LocationFinderContainer">
-          <div className="client-controls">
-            <button
-              className={`available-rides-button ${
-                showRidesList ? "active" : ""
-              }`}
-              onClick={showAvailableRides}
-              disabled={isLoading}
-            >
-              {isLoading && showRidesList ? "Loading..." : "Available Rides"}
-            </button>
+  // Add new navigation function
+  const navigateToRiderDashboard = () => {
+    navigate("/RiderDashboard");
+  };
 
-            <button
-              className={`my-rides-button ${showMyRides ? "active" : ""}`}
-              onClick={showClientRides}
-              disabled={isLoading}
-            >
-              {isLoading && showMyRides ? "Loading..." : "My Rides"}
-            </button>
+  // Add logout function
+  const handleLogout = () => {
+    localStorage.removeItem("clientId");
+    localStorage.removeItem("metaAccount");
+    navigate("/ClientLogin");
+  };
 
-            <button className="toggle-map-button" onClick={toggleMap}>
-              {showMap ? "Hide Map" : "Show Map"}
-            </button>
+  // Profile section render
+  const renderProfile = () => (
+    <div className="profile-content">
+      <h2>Rider Profile</h2>
+
+      {clientData ? (
+        <div className="profile-details">
+          <div className="profile-picture">
+            <div className="profile-avatar">
+              {clientData.name ? clientData.name.charAt(0).toUpperCase() : "R"}
+            </div>
           </div>
 
-          {/* Only show the map input when map is visible */}
-          {showMap && (
+          <div className="profile-info">
+            <div className="info-group">
+              <label>Name:</label>
+              <p>{clientData.name || "Not provided"}</p>
+            </div>
+
+            <div className="info-group">
+              <label>Email:</label>
+              <p>{clientData.email || "Not provided"}</p>
+            </div>
+
+            <div className="info-group">
+              <label>Phone:</label>
+              <p>{clientData.phone || "Not provided"}</p>
+            </div>
+
+            <div className="info-group">
+              <label>Wallet Address:</label>
+              <p className="wallet-address">
+                {clientData.walletAddress ||
+                  clientData.metaAccount ||
+                  clientMetaAccount ||
+                  "Not connected"}
+              </p>
+            </div>
+
+            <div className="info-group">
+              <label>Client ID:</label>
+              <p>{clientData.clientId || clientId || "Unknown"}</p>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="loading-indicator">Loading profile...</div>
+      )}
+    </div>
+  );
+
+  // Available rides section
+  const renderAvailableRides = () => (
+    <div className="available-rides-section">
+      <div className="section-header">
+        <h2>Available Rides</h2>
+        <div className="section-controls">
+          <button className="toggle-map-button" onClick={toggleMap}>
+            {showMap ? "Hide Map" : "Show Map"}
+          </button>
+        </div>
+      </div>
+
+      {showMap && (
+        <div className="map-search-controls">
+          <p className="Driver-Search-Para">Enter Your Destination</p>
+          <input
+            type="text"
+            className="LocationFinder-Text"
+            value={destinationInput}
+            onChange={(e) => setDestinationInput(e.target.value)}
+            placeholder="Enter your destination"
+          />
+          <button className="Client-Search-Button" onClick={geocodeDestination}>
+            Search
+          </button>
+        </div>
+      )}
+
+      {isLoading ? (
+        <div className="loading-indicator">Loading rides...</div>
+      ) : availableRides.length > 0 ? (
+        <div className="rides-container">
+          {availableRides.map((ride) => (
+            <div
+              key={ride.rideId}
+              className={`ride-item ${
+                selectedRide && selectedRide.rideId === ride.rideId
+                  ? "selected"
+                  : ""
+              } ${ride.requestStatus ? `status-${ride.requestStatus}` : ""}`}
+              onClick={() => setSelectedRide(ride)}
+            >
+              <div className="ride-header">
+                <h4>Ride #{ride.rideId}</h4>
+                <span className="seats-available">
+                  {ride.availableSeats} seats
+                </span>
+              </div>
+
+              <div className="ride-details">
+                <div className="detail-item">
+                  <span className="detail-label">From</span>
+                  <span className="detail-value">
+                    {ride.startLocation || ride.startLocationName || "Unknown"}
+                  </span>
+                </div>
+                <div className="detail-item">
+                  <span className="detail-label">To</span>
+                  <span className="detail-value">
+                    {ride.destination || ride.destinationName || "Unknown"}
+                  </span>
+                </div>
+                <div className="detail-item">
+                  <span className="detail-label">Price</span>
+                  <span className="detail-value">{ride.price} ETH</span>
+                </div>
+                <div className="detail-item">
+                  <span className="detail-label">Departure</span>
+                  <span className="detail-value">
+                    {ride.departureTime
+                      ? new Date(ride.departureTime).toLocaleString()
+                      : "Flexible"}
+                  </span>
+                </div>
+                <div className="detail-item">
+                  <span className="detail-label">Driver Rating</span>
+                  <RatingComponent driverId={ride.driverId} readOnly={true} />
+                </div>
+              </div>
+
+              {ride.requestStatus && (
+                <div className="request-status-container">
+                  <span className={`request-status ${ride.requestStatus}`}>
+                    {ride.requestStatus === "pending" && "Request Pending"}
+                    {ride.requestStatus === "accepted" && "Request Accepted"}
+                    {ride.requestStatus === "rejected" && "Request Rejected"}
+                  </span>
+                </div>
+              )}
+
+              {!ride.requestStatus && (
+                <div className="ride-actions">
+                  <button
+                    className="request-ride-button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      requestRide(ride.rideId);
+                    }}
+                    disabled={isLoading}
+                  >
+                    Request Ride
+                  </button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="no-rides-message">
+          No available rides at the moment. Please check back later.
+        </div>
+      )}
+
+      {/* Only show the map when showMap is true */}
+      {showMap && (
+        <div className="map-container">
+          <Map
+            googleMapsApiKey={process.env.REACT_APP_GOOGLE_MAPS_API_KEY}
+            libraries={["geometry"]}
+            center={currentDestination}
+            zoom={12}
+          >
+            <APIProvider apiKey={process.env.REACT_APP_GOOGLE_MAPS_API_KEY}>
+              <Marker position={currentDestination} />
+            </APIProvider>
+          </Map>
+        </div>
+      )}
+    </div>
+  );
+
+  // Add a new function to show the rating modal
+  const openRatingModal = (ride) => {
+    setRideToRate(ride);
+    setShowRatingModal(true);
+  };
+
+  // Add a function to handle when rating is submitted
+  const handleRatingSubmitted = async (rating) => {
+    setShowRatingModal(false);
+
+    if (rideToRate) {
+      // Update the ride's hasRated status locally without having to refetch all rides
+      setMyRides((prevRides) =>
+        prevRides.map((ride) =>
+          ride.rideId === rideToRate.rideId
+            ? { ...ride, hasRated: true, userRating: rating }
+            : ride
+        )
+      );
+
+      // Also update the selected ride if it's the one that was rated
+      if (selectedRide && selectedRide.rideId === rideToRate.rideId) {
+        setSelectedRide({
+          ...selectedRide,
+          hasRated: true,
+          userRating: rating,
+        });
+      }
+    }
+  };
+
+  // My rides section
+  const renderMyRides = () => (
+    <div className="my-rides-section">
+      <div className="section-header">
+        <h2>My Rides</h2>
+        <button
+          className="refresh-button"
+          onClick={fetchMyRides}
+          disabled={isLoading}
+        >
+          Refresh
+        </button>
+      </div>
+
+      {isLoading ? (
+        <div className="loading-indicator">Loading your rides...</div>
+      ) : myRides.length > 0 ? (
+        <div className="rides-container">
+          {myRides.map((ride) => (
+            <div
+              key={ride.rideId}
+              className={`ride-item ${
+                selectedRide && selectedRide.rideId === ride.rideId
+                  ? "selected"
+                  : ""
+              } ${ride.status || "unknown"}`}
+              onClick={() => setSelectedRide(ride)}
+            >
+              <div className="ride-header">
+                <h4>Ride #{ride.rideId}</h4>
+                <div className="ride-driver-info">
+                  <span>Driver #{ride.driverId}</span>
+                  {ride.driverId && (
+                    <RatingComponent driverId={ride.driverId} readOnly={true} />
+                  )}
+                </div>
+              </div>
+
+              <div className="ride-details">
+                <div className="detail-item">
+                  <span className="detail-label">From</span>
+                  <span className="detail-value">
+                    {ride.startLocation || ride.startLocationName || "Unknown"}
+                  </span>
+                </div>
+                <div className="detail-item">
+                  <span className="detail-label">To</span>
+                  <span className="detail-value">
+                    {ride.destination || ride.destinationName || "Unknown"}
+                  </span>
+                </div>
+                <div className="detail-item">
+                  <span className="detail-label">Price</span>
+                  <span className="detail-value">{ride.price} ETH</span>
+                </div>
+                <div className="detail-item">
+                  <span className="detail-label">Date</span>
+                  <span className="detail-value">
+                    {ride.departureTime
+                      ? new Date(
+                          parseInt(ride.departureTime) * 1000
+                        ).toLocaleDateString()
+                      : "N/A"}
+                  </span>
+                </div>
+              </div>
+
+              {/* Show payment button for rides with pending payment */}
+              {ride.status === "completed" && ride.paymentPending && (
+                <div className="ride-actions">
+                  <button
+                    className="payment-button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      makePayment(ride);
+                    }}
+                    disabled={isLoading}
+                  >
+                    {isLoading
+                      ? "Processing..."
+                      : `Make Payment (${ride.price} ETH)`}
+                  </button>
+                </div>
+              )}
+
+              {/* Show rating button for completed and paid rides that haven't been rated */}
+              {ride.status === "completed" && ride.isPaid && !ride.hasRated && (
+                <div className="ride-actions">
+                  <button
+                    className="rate-ride-button"
+                    style={{
+                      backgroundColor: "#4caf50",
+                      color: "white",
+                      padding: "10px",
+                      width: "100%",
+                      fontSize: "14px",
+                    }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openRatingModal(ride);
+                    }}
+                  >
+                    Rate Driver
+                  </button>
+                </div>
+              )}
+
+              {/* Show rating status for already rated rides */}
+              {ride.status === "completed" && ride.isPaid && ride.hasRated && (
+                <div className="ride-actions">
+                  <div
+                    className="rating-info"
+                    style={{
+                      textAlign: "center",
+                      padding: "10px",
+                      backgroundColor: "rgba(76, 175, 80, 0.1)",
+                      border: "1px solid #4caf50",
+                      borderRadius: "4px",
+                      color: "#4caf50",
+                      fontWeight: "bold",
+                    }}
+                  >
+                    <div>
+                      <div style={{ fontSize: "13px", marginBottom: "3px" }}>
+                        You rated this driver:
+                      </div>
+                      <StarDisplay rating={ride.userRating} size={18} />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Show cancel button for rides with pending status */}
+              {ride.status === "pending" && (
+                <div className="ride-actions">
+                  <button
+                    className="cancel-button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      cancelRide(ride.rideId);
+                    }}
+                    disabled={isLoading}
+                  >
+                    Cancel Request
+                  </button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="no-rides-message">
+          You haven't booked any rides yet.
+        </div>
+      )}
+    </div>
+  );
+
+  return (
+    <div className="client-dashboard-wrapper">
+      {/* Header */}
+      <div className="dashboard-header">
+        <div className="dashboard-logo">
+          <h1>RideApp</h1>
+        </div>
+        <div className="dashboard-user">
+          {clientData && (
             <>
-              <p className="Driver-Search-Para">Enter Your Destination</p>
-              <input
-                type="text"
-                className="LocationFinder-Text"
-                value={destinationInput}
-                onChange={(e) => setDestinationInput(e.target.value)}
-                placeholder="Enter your destination"
-              />
-              <button
-                className="Client-Search-Button"
-                onClick={geocodeDestination}
+              <span className="user-greeting">
+                Hello, {clientData.name || "Rider"}
+              </span>
+              <div
+                className="user-avatar"
+                onClick={() => setActiveSection("profile")}
               >
-                Search
-              </button>
+                {clientData.name
+                  ? clientData.name.charAt(0).toUpperCase()
+                  : "R"}
+              </div>
             </>
           )}
+        </div>
+      </div>
 
-          {/* Available Rides List */}
-          {showRidesList && availableRides.length > 0 && (
-            <div className="available-rides-list">
-              <h3>Available Rides</h3>
-
-              <div className="rides-container">
-                {availableRides.map((ride) => (
-                  <div
-                    key={ride.rideId}
-                    className={`ride-item ${
-                      selectedRide && selectedRide.rideId === ride.rideId
-                        ? "selected"
-                        : ""
-                    } ${
-                      ride.requestStatus ? `status-${ride.requestStatus}` : ""
-                    }`}
-                    onClick={() => setSelectedRide(ride)}
-                  >
-                    <div className="ride-header">
-                      <h4>Ride #{ride.rideId}</h4>
-                      <span className="seats-available">
-                        {ride.availableSeats} seats
-                      </span>
-                    </div>
-
-                    <div className="ride-details">
-                      <p>
-                        <strong>From:</strong> {ride.startLocation}
-                      </p>
-                      <p>
-                        <strong>To:</strong> {ride.destination}
-                      </p>
-                      <p>
-                        <strong>Price:</strong> {ride.price} ETH
-                      </p>
-                      <p>
-                        <strong>Departure:</strong>{" "}
-                        {new Date(ride.departureTime).toLocaleString()}
-                      </p>
-                    </div>
-
-                    {/* Conditional rendering based on request status */}
-                    {!ride.requestStatus && (
-                      <button
-                        className="request-ride-button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          requestRide(ride.rideId);
-                        }}
-                        disabled={isLoading}
-                      >
-                        Request Ride
-                      </button>
-                    )}
-
-                    {ride.requestStatus === "pending" && (
-                      <div className="request-status pending">
-                        Request Pending
-                      </div>
-                    )}
-
-                    {ride.requestStatus === "accepted" && (
-                      <div className="request-status accepted">
-                        Request Accepted
-                      </div>
-                    )}
-
-                    {ride.requestStatus === "rejected" && (
-                      <div className="request-status rejected">
-                        Request Rejected
-                      </div>
-                    )}
-                  </div>
-                ))}
+      {/* Main content with sidebar and content area */}
+      <div className="client-dashboard-container">
+        {/* Sidebar */}
+        <div className="dashboard-sidebar">
+          <div className="sidebar-profile">
+            {clientData && (
+              <div className="sidebar-avatar">
+                {clientData.name
+                  ? clientData.name.charAt(0).toUpperCase()
+                  : "R"}
               </div>
+            )}
+            <div className="sidebar-user-info">
+              <h3>{clientData ? clientData.name || "Rider" : "Rider"}</h3>
+              <p className="user-status">Online</p>
             </div>
-          )}
+          </div>
 
-          {showRidesList && availableRides.length === 0 && (
-            <div className="no-rides-message">
-              <p>No available rides at the moment. Please check back later.</p>
-            </div>
-          )}
-
-          {/* My Rides List */}
-          {showMyRides && myRides.length > 0 && (
-            <div className="my-rides-list">
-              <h3>My Rides</h3>
-
-              <div className="rides-container">
-                {myRides.map((ride) => (
-                  <div
-                    key={ride.rideId}
-                    className={`ride-item ${
-                      selectedRide && selectedRide.rideId === ride.rideId
-                        ? "selected"
-                        : ""
-                    } ${ride.paymentPending ? "payment-pending" : ride.status}`}
-                    onClick={() => setSelectedRide(ride)}
-                  >
-                    <div className="ride-header">
-                      <h4>Ride #{ride.rideId}</h4>
-                      <span
-                        className={`status ${
-                          ride.paymentPending ? "payment-pending" : ride.status
-                        }`}
-                      >
-                        {renderRideStatus(ride)}
-                      </span>
-                    </div>
-
-                    <div className="ride-details">
-                      <p>
-                        <strong>From:</strong> {ride.startLocation}
-                      </p>
-                      <p>
-                        <strong>To:</strong> {ride.destination}
-                      </p>
-                      <p>
-                        <strong>Price:</strong> {ride.price} ETH
-                      </p>
-                      <p>
-                        <strong>Departure:</strong>{" "}
-                        {new Date(
-                          parseInt(ride.departureTime) * 1000
-                        ).toLocaleString()}
-                      </p>
-                    </div>
-
-                    {/* Show payment button for rides with pending payment */}
-                    {ride.status === "completed" && ride.paymentPending && (
-                      <button
-                        className="payment-button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          makePayment(ride);
-                        }}
-                        disabled={isLoading}
-                      >
-                        {isLoading
-                          ? "Processing..."
-                          : `Make Payment (${ride.price} ETH)`}
-                      </button>
-                    )}
-
-                    {/* Show paid status for completed and paid rides */}
-                    {ride.status === "completed" && ride.isPaid && (
-                      <div className="payment-status paid">
-                        Payment Complete
-                      </div>
-                    )}
-
-                    {/* Show cancel button for rides with pending status */}
-                    {ride.status === "pending" && (
-                      <button
-                        className="cancel-button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          cancelRide(ride.rideId);
-                        }}
-                        disabled={isLoading}
-                      >
-                        Cancel Request
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          <ul className="sidebar-menu">
+            <li
+              className={activeSection === "profile" ? "active" : ""}
+              onClick={() => setActiveSection("profile")}
+            >
+              <FaUser className="menu-icon" />
+              <span>Profile</span>
+            </li>
+            <li
+              className={activeSection === "availableRides" ? "active" : ""}
+              onClick={() => {
+                setActiveSection("availableRides");
+                setShowRidesList(true);
+                setShowMyRides(false);
+                fetchAvailableRides();
+              }}
+            >
+              <FaSearch className="menu-icon" />
+              <span>Available Rides</span>
+            </li>
+            <li
+              className={activeSection === "myRides" ? "active" : ""}
+              onClick={() => {
+                setActiveSection("myRides");
+                setShowRidesList(false);
+                setShowMyRides(true);
+                fetchMyRides();
+              }}
+            >
+              <FaClipboardList className="menu-icon" />
+              <span>My Rides</span>
+            </li>
+            <li onClick={handleLogout}>
+              <FaSignOutAlt className="menu-icon" />
+              <span>Logout</span>
+            </li>
+          </ul>
         </div>
 
-        {/* Only show the map when showMap is true */}
-        {showMap && (
-          <div className="map-container">
-            <Map
-              googleMapsApiKey={process.env.REACT_APP_GOOGLE_MAPS_API_KEY}
-              libraries={["geometry"]}
-              center={currentDestination}
-              zoom={12}
-            >
-              <APIProvider apiKey={process.env.REACT_APP_GOOGLE_MAPS_API_KEY}>
-                <Marker position={currentDestination} />
-              </APIProvider>
-            </Map>
-          </div>
-        )}
+        {/* Main content area */}
+        <div className="dashboard-main">
+          {loading ? (
+            <div className="loading-indicator">Loading...</div>
+          ) : error ? (
+            <div className="error-message">{error}</div>
+          ) : (
+            <>
+              {activeSection === "profile" && renderProfile()}
+              {activeSection === "availableRides" && renderAvailableRides()}
+              {activeSection === "myRides" && renderMyRides()}
+            </>
+          )}
+        </div>
       </div>
-    </>
+
+      {/* Rating Modal */}
+      {showRatingModal && rideToRate && (
+        <div className="rating-modal">
+          <div className="rating-modal-content">
+            <span
+              className="rating-modal-close"
+              onClick={() => setShowRatingModal(false)}
+            >
+              &times;
+            </span>
+            <RatingComponent
+              rideId={rideToRate.rideId}
+              driverId={rideToRate.driverId}
+              driverName={`Driver #${rideToRate.driverId}`}
+              onRatingSubmitted={handleRatingSubmitted}
+            />
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 

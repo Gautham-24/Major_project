@@ -79,6 +79,16 @@ contract ChainRideContract {
         uint256[] requestIds;
     }
     
+    // Add a new struct for rating
+    struct Rating {
+        uint256 id;
+        uint256 rideId;
+        uint256 driverId;
+        uint256 clientId;
+        uint8 score; // Rating score from 1-5
+        uint256 timestamp;
+    }
+    
     // Mappings
     mapping(uint256 => Driver) public drivers;
     mapping(address => uint256) public driverAddressToId;
@@ -90,6 +100,14 @@ contract ChainRideContract {
     
     // Add new mapping to track rides per client
     mapping(uint256 => uint256[]) private clientRides; // clientId => rideIds
+    
+    // Add mapping for ratings
+    mapping(uint256 => Rating) public ratings;
+    uint256 private ratingCount = 0;
+    
+    // Add driver rating tracking
+    mapping(uint256 => uint256) private driverTotalRatings; // Total sum of all ratings
+    mapping(uint256 => uint256) private driverRatingCount; // Count of ratings received
     
     // Arrays to keep track of all entities
     uint256[] public allDriverIds;
@@ -110,6 +128,7 @@ contract ChainRideContract {
     event PaymentReceived(uint256 indexed rideId, uint256 indexed clientId, uint256 amount);
     // New event for ride confirmation by a passenger
     event RideConfirmed(uint256 indexed rideId, uint256 indexed clientId, uint256 amount);
+    event RatingSubmitted(uint256 ratingId, uint256 rideId, uint256 driverId, uint256 clientId, uint8 score);
     
     // Modifiers
     modifier onlyDriver(uint256 _driverId) {
@@ -434,5 +453,124 @@ contract ChainRideContract {
     
     function getTotalClients() public view returns (uint256) {
         return clientIdCounter - 1;
+    }
+    
+    // Add the rating function
+    function rateDriver(uint256 _rideId, uint8 _score) public {
+        // Validate the score is between 1 and 5
+        require(_score >= 1 && _score <= 5, "Rating must be between 1 and 5");
+        
+        // Get the ride details
+        Ride storage ride = rides[_rideId];
+        require(ride.id > 0, "Ride does not exist");
+        require(keccak256(bytes(ride.status)) == keccak256(bytes("completed")), "Ride must be completed to rate");
+        
+        // Get the client ID
+        uint256 clientId = clientAddressToId[msg.sender];
+        require(clientId > 0, "Client not registered");
+        
+        // Check if client was a passenger on this ride
+        bool isPassenger = false;
+        for (uint256 i = 0; i < ride.passengerIds.length; i++) {
+            Passenger storage passenger = passengers[ride.passengerIds[i]];
+            if (passenger.clientId == clientId) {
+                isPassenger = true;
+                break;
+            }
+        }
+        require(isPassenger, "Only passengers can rate a ride");
+        
+        // Check if client has already rated this ride
+        for (uint256 i = 1; i <= ratingCount; i++) {
+            if (ratings[i].rideId == _rideId && ratings[i].clientId == clientId) {
+                revert("You have already rated this ride");
+            }
+        }
+        
+        // Create a new rating
+        ratingCount++;
+        ratings[ratingCount] = Rating({
+            id: ratingCount,
+            rideId: _rideId,
+            driverId: ride.driverId,
+            clientId: clientId,
+            score: _score,
+            timestamp: block.timestamp
+        });
+        
+        // Update driver's total ratings and count
+        driverTotalRatings[ride.driverId] += _score;
+        driverRatingCount[ride.driverId]++;
+        
+        // Emit event
+        emit RatingSubmitted(ratingCount, _rideId, ride.driverId, clientId, _score);
+    }
+    
+    // Get average rating for a driver
+    function getDriverRating(uint256 _driverId) public view returns (uint256, uint256) {
+        require(_driverId > 0, "Driver ID must be greater than 0");
+        require(drivers[_driverId].id > 0, "Driver does not exist");
+        
+        // If no ratings, return 0
+        if (driverRatingCount[_driverId] == 0) {
+            return (0, 0);
+        }
+        
+        // Return average rating and count
+        return (driverTotalRatings[_driverId], driverRatingCount[_driverId]);
+    }
+    
+    // Get all ratings for a specific driver
+    function getDriverRatings(uint256 _driverId) public view returns (uint256[] memory) {
+        require(_driverId > 0, "Driver ID must be greater than 0");
+        
+        // Count how many ratings this driver has
+        uint256 count = 0;
+        for (uint256 i = 1; i <= ratingCount; i++) {
+            if (ratings[i].driverId == _driverId) {
+                count++;
+            }
+        }
+        
+        // Create array of the appropriate size
+        uint256[] memory driverRatingIds = new uint256[](count);
+        
+        // Fill the array
+        uint256 index = 0;
+        for (uint256 i = 1; i <= ratingCount; i++) {
+            if (ratings[i].driverId == _driverId) {
+                driverRatingIds[index] = i;
+                index++;
+            }
+        }
+        
+        return driverRatingIds;
+    }
+    
+    // Get all ratings for a specific ride
+    function getRideRatings(uint256 _rideId) public view returns (uint256[] memory) {
+        require(_rideId > 0, "Ride ID must be greater than 0");
+        
+        // Count how many ratings this ride has
+        uint256 count = 0;
+        for (uint256 i = 1; i <= ratingCount; i++) {
+            if (ratings[i].rideId == _rideId) {
+                count++;
+            }
+        }
+        
+        // Create array of the appropriate size
+        uint256[] memory rideRatingIds = new uint256[](count);
+        
+        // Fill the array
+        uint256 index = 0;
+        for (uint256 i = 1; i <= ratingCount; i++) {
+            if (ratings[i].rideId == _rideId) {
+                rideRatingIds[index] = i;
+                index++;
+            }
+        }
+        
+        return rideRatingIds;
     }
 }

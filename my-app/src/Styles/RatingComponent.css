@@ -1,0 +1,125 @@
+.rating-component {
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  margin: 15px 0;
+  text-align: center;
+  max-width: 400px;
+}
+
+.rating-component h3 {
+  margin-top: 0;
+  color: #333;
+  font-size: 18px;
+}
+
+.rating-component p {
+  color: #666;
+  margin-bottom: 15px;
+}
+
+.stars-container {
+  display: flex;
+  justify-content: center;
+  margin: 10px 0;
+}
+
+.star {
+  cursor: pointer;
+  transition: color 200ms;
+  margin: 0 5px;
+}
+
+input[type="radio"] {
+  display: none;
+}
+
+.rating-label {
+  margin: 10px 0;
+  font-weight: bold;
+  color: #333;
+}
+
+.submit-rating-button {
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 10px 20px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: background-color 0.3s;
+  margin-top: 10px;
+}
+
+.submit-rating-button:hover {
+  background-color: #0069d9;
+}
+
+.submit-rating-button:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
+}
+
+/* Read-only driver rating */
+.driver-rating-display {
+  display: flex;
+  align-items: center;
+  padding: 5px;
+}
+
+.driver-rating-display .stars-container {
+  margin: 0 5px 0 0;
+}
+
+.driver-rating-display .rating-text {
+  font-size: 14px;
+  color: #555;
+}
+
+/* Modal for rating */
+.rating-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.rating-modal-content {
+  background-color: white;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+  width: 90%;
+  max-width: 450px;
+}
+
+.rating-modal-close {
+  float: right;
+  font-size: 20px;
+  font-weight: bold;
+  cursor: pointer;
+  color: #aaa;
+}
+
+.rating-modal-close:hover {
+  color: #333;
+}
+
+/* Responsive styles */
+@media (max-width: 768px) {
+  .rating-component {
+    padding: 15px;
+  }
+
+  .star {
+    font-size: 24px;
+  }
+}

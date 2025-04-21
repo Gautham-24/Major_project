@@ -76,7 +76,7 @@ function ClientLogin() {
             // Handle successful response
             console.log("Response from backend:", response.data);
             setIsConnecting(false);
-            // Navigate to /ClientLocation after a successful response
+            // Navigate to /RiderDashboard after a successful response
             navigate("/ClientLocation");
           } catch (error) {
             console.error(`Error connecting to ${SERVER_URLS[0]}:`, error);

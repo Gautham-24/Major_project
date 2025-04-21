@@ -10,6 +10,7 @@ import {
   FaSignOutAlt,
   FaWallet,
 } from "react-icons/fa";
+import RatingComponent from "./RatingComponent";
 
 function DriverDashboard() {
   const navigate = useNavigate();
@@ -22,6 +23,7 @@ function DriverDashboard() {
     active: 0,
     totalEarnings: 0,
   });
+  const [driverRating, setDriverRating] = useState({ average: 0, total: 0 });
 
   useEffect(() => {
     const fetchDriverData = async () => {
@@ -76,6 +78,28 @@ function DriverDashboard() {
 
     fetchDriverData();
   }, [navigate]);
+
+  const fetchDriverRating = async (driverId) => {
+    try {
+      const response = await axios.get(
+        `http://localhost:8080/api/drivers/${driverId}/rating`
+      );
+      if (response.data.success) {
+        setDriverRating({
+          average: response.data.averageRating,
+          total: response.data.totalRatings,
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching driver rating:", error);
+    }
+  };
+
+  useEffect(() => {
+    if (driverData && driverData.driverId) {
+      fetchDriverRating(driverData.driverId);
+    }
+  }, [driverData]);
 
   const handleLogout = () => {
     localStorage.removeItem("driverId");
@@ -161,11 +185,9 @@ function DriverDashboard() {
 
   // Profile content
   const renderProfile = () => (
-    <div className="profile-content">
-      <h2>Driver Profile</h2>
-
-      {driverData && (
-        <div className="profile-details">
+    <div className="driver-profile-section">
+      {driverData ? (
+        <div className="profile-container">
           <div className="profile-picture">
             <div className="profile-avatar">
               {driverData.name ? driverData.name.charAt(0).toUpperCase() : "D"}
@@ -189,20 +211,6 @@ function DriverDashboard() {
             </div>
 
             <div className="info-group">
-              <label>Wallet Address:</label>
-              <p className="wallet-address">
-                {driverData.walletAddress ||
-                  driverData.metaAccount ||
-                  "Not connected"}
-              </p>
-            </div>
-
-            <div className="info-group">
-              <label>Driver ID:</label>
-              <p>{driverData.driverId || "Unknown"}</p>
-            </div>
-
-            <div className="info-group">
               <label>Car Model:</label>
               <p>{driverData.carModel || "Not provided"}</p>
             </div>
@@ -213,11 +221,27 @@ function DriverDashboard() {
             </div>
 
             <div className="info-group">
+              <label>Wallet Address:</label>
+              <p className="wallet-address">
+                {driverData.walletAddress ||
+                  driverData.metaAccount ||
+                  "Not connected"}
+              </p>
+            </div>
+
+            <div className="info-group">
+              <label>Rating:</label>
+              <RatingComponent driverId={driverData.driverId} readOnly={true} />
+            </div>
+
+            <div className="info-group">
               <label>Car Color:</label>
               <p>{driverData.carColor || "Not provided"}</p>
             </div>
           </div>
         </div>
+      ) : (
+        <div className="loading-indicator">Loading profile...</div>
       )}
 
       <div className="profile-actions">
