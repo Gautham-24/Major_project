@@ -1015,7 +1015,12 @@ function ClientLocation() {
       return <span className="ride-status in-progress">Ride In Progress</span>;
     }
 
-    // Fourth priority: Request status
+    // Fourth priority: Cancelled/Canceled rides
+    if (ride.status === "canceled" || ride.status === "cancelled") {
+      return <span className="ride-status cancelled">Ride Cancelled</span>;
+    }
+
+    // Fifth priority: Request status
     if (ride.hasRequest || ride.requestStatus) {
       if (ride.requestStatus === "pending") {
         return <span className="ride-status pending">Request Pending</span>;
@@ -1461,9 +1466,32 @@ function ClientLocation() {
             >
               <div className="ride-header">
                 <h4>Ride #{ride.rideId}</h4>
-                <span className="seats-available">
-                  {ride.availableSeats} seats
-                </span>
+                <div className="status-badge-container">
+                  {ride.status === "active" && (
+                    <span className="status active">Active</span>
+                  )}
+                  {ride.status === "in_progress" && (
+                    <span className="status in_progress">In Progress</span>
+                  )}
+                  {ride.status === "completed" && ride.paymentPending && (
+                    <span className="status payment-pending">
+                      Payment Pending
+                    </span>
+                  )}
+                  {ride.status === "completed" && !ride.paymentPending && (
+                    <span className="status completed">Completed</span>
+                  )}
+                  {(ride.status === "canceled" ||
+                    ride.status === "cancelled") && (
+                    <span className="status cancelled">Canceled</span>
+                  )}
+                </div>
+                <div className="ride-driver-info">
+                  <span>Driver #{ride.driverId}</span>
+                  {ride.driverId && (
+                    <RatingComponent driverId={ride.driverId} readOnly={true} />
+                  )}
+                </div>
               </div>
 
               <div className="ride-details">
@@ -1609,6 +1637,26 @@ function ClientLocation() {
             >
               <div className="ride-header">
                 <h4>Ride #{ride.rideId}</h4>
+                <div className="status-badge-container">
+                  {ride.status === "active" && (
+                    <span className="status active">Active</span>
+                  )}
+                  {ride.status === "in_progress" && (
+                    <span className="status in_progress">In Progress</span>
+                  )}
+                  {ride.status === "completed" && ride.paymentPending && (
+                    <span className="status payment-pending">
+                      Payment Pending
+                    </span>
+                  )}
+                  {ride.status === "completed" && !ride.paymentPending && (
+                    <span className="status completed">Completed</span>
+                  )}
+                  {(ride.status === "canceled" ||
+                    ride.status === "cancelled") && (
+                    <span className="status cancelled">Canceled</span>
+                  )}
+                </div>
                 <div className="ride-driver-info">
                   <span>Driver #{ride.driverId}</span>
                   {ride.driverId && (
@@ -1643,6 +1691,35 @@ function ClientLocation() {
                         ).toLocaleDateString()
                       : "N/A"}
                   </span>
+                </div>
+                <div className="detail-item">
+                  <span className="detail-label">Status</span>
+                  {ride.status === "active" && (
+                    <span className="detail-value status-text status-active">
+                      Active
+                    </span>
+                  )}
+                  {ride.status === "in_progress" && (
+                    <span className="detail-value status-text status-in-progress">
+                      In Progress
+                    </span>
+                  )}
+                  {ride.status === "completed" && ride.paymentPending && (
+                    <span className="detail-value status-text status-payment-pending">
+                      Payment Pending
+                    </span>
+                  )}
+                  {ride.status === "completed" && !ride.paymentPending && (
+                    <span className="detail-value status-text status-completed">
+                      Completed
+                    </span>
+                  )}
+                  {(ride.status === "canceled" ||
+                    ride.status === "cancelled") && (
+                    <span className="detail-value status-text status-canceled">
+                      Canceled
+                    </span>
+                  )}
                 </div>
               </div>
 

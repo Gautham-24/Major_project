@@ -724,6 +724,9 @@ function DriverMap() {
 
   // Add a function to open the requests panel
   const openRequestsPanel = (ride) => {
+    setSelectedRide(ride);
+    logPassengerInfo(ride);
+    fetchRideRequests(ride.rideId);
     setShowRequests(true);
   };
 
@@ -829,6 +832,39 @@ function DriverMap() {
     } catch (error) {
       console.error("Error completing ride:", error);
       alert("Error completing ride. Please try again.");
+    }
+  };
+
+  // Function to cancel a ride
+  const cancelRide = async (rideId) => {
+    try {
+      if (
+        !window.confirm(
+          "Are you sure you want to cancel this ride? This action cannot be undone."
+        )
+      ) {
+        return;
+      }
+
+      setIsLoading(true);
+      const metaAccount = localStorage.getItem("metaAccount");
+
+      const response = await axios.post(
+        `http://localhost:8080/api/rides/${rideId}/cancel`,
+        { driverMetaAccount: metaAccount }
+      );
+
+      if (response.data.success) {
+        alert("Ride has been canceled successfully.");
+        fetchMyRides();
+      } else {
+        alert("Error canceling ride: " + response.data.message);
+      }
+    } catch (error) {
+      console.error("Error canceling ride:", error);
+      alert("Error canceling ride. Please try again.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -1313,7 +1349,7 @@ function DriverMap() {
             {/* My Rides List */}
             {!showPostRideForm && (
               <>
-                <button className="toggle-map-button" onClick={toggleMap}>
+                {/* <button className="toggle-map-button" onClick={toggleMap}>
                   {showMap ? (
                     <>
                       <FaArrowLeft /> Hide Map
@@ -1323,7 +1359,7 @@ function DriverMap() {
                       <FaMapMarkedAlt /> Show Map
                     </>
                   )}
-                </button>
+                </button> */}
 
                 <div className="driver-rides-layout">
                   {/* Rides Section */}
@@ -1337,7 +1373,7 @@ function DriverMap() {
                       {isLoading ? (
                         <div className="loading-spinner"></div>
                       ) : myRides.length > 0 ? (
-                        myRides.map((ride) => (
+                        [...myRides].reverse().map((ride) => (
                           <div
                             key={ride.rideId}
                             className={`ride-item ${
@@ -1403,15 +1439,26 @@ function DriverMap() {
 
                             <div className="ride-actions">
                               {ride.status === "active" && (
-                                <button
-                                  className="start-ride-button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    startRide(ride.rideId);
-                                  }}
-                                >
-                                  Start Ride
-                                </button>
+                                <>
+                                  <button
+                                    className="start-ride-button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      startRide(ride.rideId);
+                                    }}
+                                  >
+                                    Start Ride
+                                  </button>
+                                  <button
+                                    className="cancel-ride-button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      cancelRide(ride.rideId);
+                                    }}
+                                  >
+                                    Cancel Ride
+                                  </button>
+                                </>
                               )}
                               {ride.status === "in_progress" && (
                                 <button
@@ -1424,6 +1471,11 @@ function DriverMap() {
                                   Complete Ride
                                 </button>
                               )}
+                              {ride.status === "canceled" && (
+                                <span className="ride-canceled-tag">
+                                  Ride Canceled
+                                </span>
+                              )}
                               <button
                                 className="view-requests-button"
                                 onClick={(e) => {
@@ -1432,23 +1484,13 @@ function DriverMap() {
                                   openRequestsPanel(ride);
                                 }}
                               >
-                                View Requests{" "}
-                                {ride.passengerIds?.length > 0 ||
-                                ride.passengerCount > 0 ? (
-                                  <span className="request-count">
-                                    {ride.passengerIds?.length ||
-                                      ride.passengerCount ||
-                                      0}
-                                  </span>
-                                ) : null}
+                                View Requests
                               </button>
                             </div>
                           </div>
                         ))
                       ) : (
-                        <div className="no-rides-message">
-                          You haven't posted any rides yet.
-                        </div>
+                        <p>No rides found.</p>
                       )}
                     </div>
                   </div>
@@ -1471,16 +1513,27 @@ function DriverMap() {
                         </button>
                       </div>
                       <div className="requests-container">
-                        {selectedRide && rideRequests.length > 0 ? (
+                        {isLoading ? (
+                          <div className="loading-spinner"></div>
+                        ) : selectedRide && rideRequests.length > 0 ? (
                           rideRequests.map((request, index) => (
                             <div
                               key={index}
-                              className={`request-item ${request.status}`}
+                              className={`request-item ${
+                                request.status || "pending"
+                              }`}
                             >
                               <div className="request-header">
-                                <h4>{request.clientName}</h4>
-                                <span className={`status ${request.status}`}>
-                                  {request.status}
+                                <h4>
+                                  {request.clientName ||
+                                    `Client #${request.clientId}`}
+                                </h4>
+                                <span
+                                  className={`status ${
+                                    request.status || "pending"
+                                  }`}
+                                >
+                                  {request.status || "pending"}
                                 </span>
                               </div>
 
@@ -1509,35 +1562,40 @@ function DriverMap() {
                                     Requested
                                   </span>
                                   <span className="detail-value">
-                                    {new Date(
-                                      request.requestedAt
-                                    ).toLocaleString()}
+                                    {request.requestedAt
+                                      ? new Date(
+                                          request.requestedAt
+                                        ).toLocaleString()
+                                      : "Unknown time"}
                                   </span>
                                 </div>
                               </div>
 
                               <div className="request-actions">
-                                {request.status === "pending" && (
+                                {(!request.status ||
+                                  request.status === "pending") && (
                                   <>
                                     <button
                                       className="confirm-button"
-                                      onClick={() =>
+                                      onClick={(e) => {
+                                        e.stopPropagation();
                                         confirmRideRequest(
                                           selectedRide.rideId,
                                           request.requestId
-                                        )
-                                      }
+                                        );
+                                      }}
                                     >
                                       Accept
                                     </button>
                                     <button
                                       className="reject-button"
-                                      onClick={() =>
+                                      onClick={(e) => {
+                                        e.stopPropagation();
                                         rejectRideRequest(
                                           selectedRide.rideId,
                                           request.requestId
-                                        )
-                                      }
+                                        );
+                                      }}
                                     >
                                       Reject
                                     </button>
@@ -1572,155 +1630,9 @@ function DriverMap() {
               </>
             )}
           </div>
-
-          {/* Only show the map when showMap is true */}
-          {showMap && (
-            <div className="map-container">
-              <APIProvider apiKey={process.env.REACT_APP_GOOGLE_MAPS_API_KEY}>
-                <Map
-                  defaultCenter={
-                    currentPosition || { lat: 43.6532, lng: -79.3832 }
-                  }
-                  defaultZoom={13}
-                  gestureHandling={"greedy"}
-                  disableDefaultUI={true}
-                  onClick={handleMapClick}
-                >
-                  {currentPosition && (
-                    <Marker
-                      position={currentPosition}
-                      title="Your Location (Start)"
-                    />
-                  )}
-                  {destination && (
-                    <Marker
-                      position={destination}
-                      title="Destination"
-                      icon={{
-                        url: DestinationMarker,
-                        scaledSize: { width: 40, height: 40 },
-                      }}
-                    />
-                  )}
-                  {pickupLocation && (
-                    <Marker
-                      position={pickupLocation}
-                      title="Pickup Point"
-                      icon={{
-                        url: "https://maps.google.com/mapfiles/ms/icons/green-dot.png",
-                      }}
-                    />
-                  )}
-                  {currentPosition && destination && (
-                    <Directions
-                      origin={currentPosition}
-                      destination={destination}
-                      setDistance={setDistance}
-                      setDuration={setDuration}
-                    />
-                  )}
-                </Map>
-              </APIProvider>
-            </div>
-          )}
         </div>
       </div>
     </div>
-  );
-}
-
-function Directions({ origin, destination, setDistance, setDuration }) {
-  const map = useMap();
-  const routesLibrary = useMapsLibrary("routes");
-
-  const [directionsService, setDirectionsService] = useState(null);
-  const [directionsRenderer, setDirectionsRenderer] = useState(null);
-  const [routes, setRoutes] = useState(null);
-
-  useEffect(() => {
-    if (!routesLibrary || !map || typeof window.google === "undefined") return;
-
-    const service = new routesLibrary.DirectionsService();
-    const renderer = new routesLibrary.DirectionsRenderer({
-      map,
-      suppressMarkers: true,
-      polylineOptions: {
-        strokeColor: "#f6851b", // Match the theme color
-        strokeWeight: 5,
-        strokeOpacity: 0.8,
-      },
-    });
-    setDirectionsService(service);
-    setDirectionsRenderer(renderer);
-  }, [routesLibrary, map]);
-
-  useEffect(() => {
-    if (
-      !directionsService ||
-      !directionsRenderer ||
-      typeof window.google === "undefined"
-    )
-      return;
-
-    // Ensure origin and destination are defined
-    if (!origin || !destination) return;
-
-    // Clear previous directions
-    directionsRenderer.setDirections({ routes: [] });
-
-    // Request a new route
-    directionsService.route(
-      {
-        origin: new window.google.maps.LatLng(origin.lat, origin.lng),
-        destination: new window.google.maps.LatLng(
-          destination.lat,
-          destination.lng
-        ),
-        travelMode: window.google.maps.TravelMode.DRIVING,
-      },
-      (result, status) => {
-        if (status === window.google.maps.DirectionsStatus.OK) {
-          directionsRenderer.setDirections(result);
-
-          // Update state with the new route
-          setRoutes(result.routes);
-
-          // Extract distance and duration
-          const route = result.routes[0];
-          const leg = route.legs[0];
-          const distance = leg.distance.text;
-          const duration = leg.duration.text;
-
-          setDistance(distance);
-          setDuration(duration);
-        } else {
-          console.error("Directions request failed due to " + status);
-        }
-      }
-    );
-  }, [directionsService, directionsRenderer, origin, destination]);
-
-  return (
-    <>
-      {origin && (
-        <Marker
-          position={origin}
-          icon={{
-            url: Thumbnail,
-            scaledSize: new window.google.maps.Size(60, 40),
-          }}
-        />
-      )}
-      {destination && (
-        <Marker
-          position={destination}
-          icon={{
-            url: DestinationMarker,
-            scaledSize: new window.google.maps.Size(20, 35),
-          }}
-        />
-      )}
-    </>
   );
 }
 

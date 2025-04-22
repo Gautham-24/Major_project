@@ -320,6 +320,8 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: 0.5rem;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
 .ride-header h4 {
@@ -327,6 +329,23 @@
   font-size: 1.1rem;
   color: var(--text-light);
   font-weight: 600;
+  flex: 1;
+}
+
+.status-badge-container {
+  display: flex;
+  justify-content: flex-end;
+  flex: 1;
+}
+
+.ride-driver-info {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 5px;
+  padding-top: 5px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .ride-meta {
@@ -369,6 +388,31 @@
   font-size: 0.9rem;
   color: var(--text-light);
   font-weight: 500;
+}
+
+.status-text {
+  font-weight: 600;
+}
+
+.status-active {
+  color: var(--secondary);
+}
+
+.status-in-progress {
+  color: var(--accent);
+}
+
+.status-payment-pending {
+  color: #ff8800;
+}
+
+.status-completed {
+  color: #2ed573;
+}
+
+.status-canceled,
+.status-cancelled {
+  color: #ff5757;
 }
 
 .ride-actions {
@@ -444,16 +488,22 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  display: inline-block;
 }
 
-.status.requested {
+.status.active {
+  background-color: rgba(22, 230, 220, 0.1);
+  color: var(--secondary);
+}
+
+.status.in_progress {
   background-color: rgba(240, 200, 52, 0.1);
   color: var(--accent);
 }
 
-.status.confirmed {
-  background-color: rgba(22, 230, 220, 0.1);
-  color: var(--secondary);
+.status.payment-pending {
+  background-color: rgba(255, 136, 0, 0.1);
+  color: #ff8800;
 }
 
 .status.completed {
@@ -461,14 +511,10 @@
   color: #2ed573;
 }
 
-.status.cancelled {
+.status.cancelled,
+.status.canceled {
   background-color: rgba(255, 87, 87, 0.1);
   color: #ff5757;
-}
-
-.status.payment-pending {
-  background-color: rgba(255, 136, 0, 0.1);
-  color: #ff8800;
 }
 
 .ride-item.requested {
@@ -483,7 +529,8 @@
   border-left: 3px solid #2ed573;
 }
 
-.ride-item.cancelled {
+.ride-item.cancelled,
+.ride-item.canceled {
   border-left: 3px solid #ff5757;
 }
 

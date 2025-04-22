@@ -410,7 +410,8 @@
 }
 
 .start-ride-button,
-.complete-ride-button {
+.complete-ride-button,
+.cancel-ride-button {
   flex: 1;
   padding: 0.75rem;
   border-radius: var(--border-radius);
@@ -441,6 +442,27 @@
 
 .complete-ride-button:hover {
   background-color: #f8d441;
+}
+
+.cancel-ride-button {
+  background-color: rgba(255, 71, 87, 0.1);
+  color: #ff4757;
+}
+
+.cancel-ride-button:hover {
+  background-color: rgba(255, 71, 87, 0.2);
+}
+
+.ride-canceled-tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--border-radius);
+  background-color: rgba(255, 71, 87, 0.1);
+  color: #ff4757;
+  font-weight: 500;
+  font-size: 0.85rem;
 }
 
 .status {
@@ -591,6 +613,26 @@
 
 .reject-button:hover {
   background-color: rgba(255, 71, 87, 0.2);
+}
+
+.request-accepted-message,
+.request-rejected-message {
+  font-size: 0.9rem;
+  font-weight: 500;
+  padding: 0.5rem;
+  border-radius: var(--border-radius);
+  text-align: center;
+  width: 100%;
+}
+
+.request-accepted-message {
+  background-color: rgba(46, 213, 115, 0.1);
+  color: #2ed573;
+}
+
+.request-rejected-message {
+  background-color: rgba(255, 71, 87, 0.1);
+  color: #ff4757;
 }
 
 .form-hint {
