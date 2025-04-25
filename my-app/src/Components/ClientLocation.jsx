@@ -78,6 +78,8 @@ function ClientLocation() {
   // Add a new state for the rating modal
   const [showRatingModal, setShowRatingModal] = useState(false);
   const [rideToRate, setRideToRate] = useState(null);
+  const [showContactModal, setShowContactModal] = useState(false);
+  const [selectedDriver, setSelectedDriver] = useState(null);
 
   // Add state for profile edit modal
   const [showEditModal, setShowEditModal] = useState(false);
@@ -1774,12 +1776,12 @@ function ClientLocation() {
         {showMap && (
           <div className="map-container">
             <Map
-              googleMapsApiKey={process.env.REACT_APP_GOOGLE_MAPS_API_KEY}
+              googleMapsApiKey="AIzaSyA5693GMMHGbrWou8pkCxTfjYndhs27sy0"
               libraries={["geometry"]}
               center={currentDestination}
               zoom={12}
             >
-              <APIProvider apiKey={process.env.REACT_APP_GOOGLE_MAPS_API_KEY}>
+              <APIProvider apiKey="AIzaSyA5693GMMHGbrWou8pkCxTfjYndhs27sy0">
                 <Marker position={currentDestination} />
               </APIProvider>
             </Map>
@@ -1793,6 +1795,110 @@ function ClientLocation() {
   const openRatingModal = (ride) => {
     setRideToRate(ride);
     setShowRatingModal(true);
+  };
+
+  // Function to open contact info modal
+  const openContactModal = async (driverId, rideId) => {
+    try {
+      console.log("Fetching driver info for driverId:", driverId);
+
+      // First try to get the specific ride if rideId is provided
+      let driverWalletAddress = null;
+
+      if (rideId) {
+        // Get specific ride details
+        try {
+          const rideResponse = await axios.get(
+            `http://localhost:8080/api/rides/${rideId}`
+          );
+          if (rideResponse.data.success && rideResponse.data.ride) {
+            driverWalletAddress = rideResponse.data.ride.driverWalletAddress;
+            console.log(
+              `Found driver wallet address from ride ${rideId}:`,
+              driverWalletAddress
+            );
+          }
+        } catch (error) {
+          console.error("Error fetching specific ride:", error);
+        }
+      }
+
+      // If driverWalletAddress is still null, try fetching from all rides
+      if (!driverWalletAddress) {
+        try {
+          const ridesResponse = await axios.get(
+            "http://localhost:8080/api/rides"
+          );
+
+          if (ridesResponse.data.success) {
+            // Find the ride with matching driver ID
+            const ride = ridesResponse.data.rides.find(
+              (ride) =>
+                ride.driverId &&
+                ride.driverId.toString() === driverId.toString()
+            );
+
+            if (ride && ride.driverWalletAddress) {
+              driverWalletAddress = ride.driverWalletAddress;
+              console.log(
+                "Found driver wallet address from all rides:",
+                driverWalletAddress
+              );
+            }
+          }
+        } catch (error) {
+          console.error("Error fetching all rides:", error);
+        }
+      }
+
+      // If we still don't have a wallet address, try getting driver directly
+      if (!driverWalletAddress) {
+        try {
+          const directDriverResponse = await axios.get(
+            `http://localhost:8080/api/get-driver?driverId=${driverId}`
+          );
+          if (directDriverResponse.data) {
+            console.log(
+              "Driver data received from direct API:",
+              directDriverResponse.data
+            );
+            setSelectedDriver(directDriverResponse.data);
+            setShowContactModal(true);
+            return; // Exit early since we have the data
+          }
+        } catch (directError) {
+          console.error("Error fetching driver directly:", directError);
+        }
+      }
+
+      // If we have the wallet address, get driver details
+      if (driverWalletAddress) {
+        const driverResponse = await axios.get(
+          `http://localhost:8080/api/driver-by-account/${driverWalletAddress}`
+        );
+
+        if (driverResponse.data && driverResponse.data.success) {
+          console.log("Driver data received:", driverResponse.data.driver);
+          setSelectedDriver(driverResponse.data.driver);
+          setShowContactModal(true);
+        } else {
+          console.error("Failed to fetch driver details");
+          toast.error("Could not fetch driver contact information");
+        }
+      } else {
+        console.error(
+          "Could not find driver wallet address for driver ID:",
+          driverId
+        );
+        toast.error("Driver contact details not available");
+      }
+    } catch (error) {
+      console.error("Error fetching driver info:", error);
+      toast.error(
+        "Failed to get driver contact information: " +
+          (error.response?.data?.message || error.message)
+      );
+    }
   };
 
   // Add a function to handle when rating is submitted
@@ -1939,40 +2045,80 @@ function ClientLocation() {
               {/* Show payment button for rides with pending payment */}
               {ride.status === "completed" && ride.paymentPending && (
                 <div className="ride-actions">
-                  <button
-                    className="payment-button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      makePayment(ride);
-                    }}
-                    disabled={isLoading}
-                  >
-                    {isLoading
-                      ? "Processing..."
-                      : `Make Payment (${ride.price} ETH)`}
-                  </button>
+                  <div style={{ display: "flex", gap: "10px" }}>
+                    <button
+                      className="payment-button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        makePayment(ride);
+                      }}
+                      disabled={isLoading}
+                      style={{
+                        flex: "1",
+                        backgroundColor: "#ffc107",
+                        color: "black",
+                        border: "none",
+                        borderRadius: "4px",
+                        padding: "10px",
+                        cursor: isLoading ? "not-allowed" : "pointer",
+                        fontWeight: "600",
+                        fontSize: "14px",
+                        boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+                      }}
+                    >
+                      {isLoading
+                        ? "Processing..."
+                        : `Make Payment (${ride.price} ETH)`}
+                    </button>
+                    <button
+                      className="contact-info-button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openContactModal(ride.driverId, ride.rideId);
+                      }}
+                    >
+                      Contact Info
+                    </button>
+                  </div>
                 </div>
               )}
 
               {/* Show rating button for completed and paid rides that haven't been rated */}
               {ride.status === "completed" && ride.isPaid && !ride.hasRated && (
                 <div className="ride-actions">
-                  <button
-                    className="rate-ride-button"
-                    style={{
-                      backgroundColor: "#4caf50",
-                      color: "white",
-                      padding: "10px",
-                      width: "100%",
-                      fontSize: "14px",
-                    }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      openRatingModal(ride);
-                    }}
-                  >
-                    Rate Driver
-                  </button>
+                  <div style={{ display: "flex", gap: "10px" }}>
+                    <button
+                      className="rate-ride-button"
+                      style={{
+                        backgroundColor: "#4caf50",
+                        color: "white",
+                        padding: "10px",
+                        flex: "1",
+                        fontSize: "14px",
+                        border: "none",
+                        borderRadius: "4px",
+                        fontWeight: "600",
+                        cursor: "pointer",
+                        boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+                        transition: "all 0.2s ease",
+                      }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openRatingModal(ride);
+                      }}
+                    >
+                      Rate Driver
+                    </button>
+                    <button
+                      className="contact-info-button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openContactModal(ride.driverId, ride.rideId);
+                      }}
+                    >
+                      <span>Contact Info</span>
+                    </button>
+                  </div>
                 </div>
               )}
 
@@ -1989,6 +2135,7 @@ function ClientLocation() {
                       borderRadius: "4px",
                       color: "#4caf50",
                       fontWeight: "bold",
+                      marginBottom: "10px",
                     }}
                   >
                     <div>
@@ -1998,8 +2145,33 @@ function ClientLocation() {
                       <StarDisplay rating={ride.userRating} size={18} />
                     </div>
                   </div>
+                  <button
+                    className="contact-info-button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openContactModal(ride.driverId, ride.rideId);
+                    }}
+                  >
+                    <span>Contact Info</span>
+                  </button>
                 </div>
               )}
+
+              {/* Contact button for active and in-progress rides */}
+              {(ride.status === "active" || ride.status === "in_progress") &&
+                ride.driverId && (
+                  <div className="ride-actions">
+                    <button
+                      className="contact-info-button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openContactModal(ride.driverId, ride.rideId);
+                      }}
+                    >
+                      <span>Contact Driver</span>
+                    </button>
+                  </div>
+                )}
 
               {/* Show cancel button for rides with pending status */}
               {ride.status === "pending" && (
@@ -2156,6 +2328,70 @@ function ClientLocation() {
                 onRatingSubmitted={handleRatingSubmitted}
                 readOnly={false}
               />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Driver Contact Info Modal */}
+      {showContactModal && selectedDriver && (
+        <div className="contact-modal-overlay">
+          <div className="contact-modal">
+            <div className="contact-modal-header">
+              <h3>Driver Contact Information</h3>
+              <button
+                className="close-btn"
+                onClick={() => setShowContactModal(false)}
+              >
+                ×
+              </button>
+            </div>
+            <div className="contact-modal-body">
+              <div className="contact-info-container">
+                <div className="contact-info-item">
+                  <div className="contact-info-label">Name:</div>
+                  <div className="contact-info-value">
+                    {selectedDriver.name || "Not provided"}
+                  </div>
+                </div>
+
+                <div className="contact-info-item">
+                  <div className="contact-info-label">Phone Number:</div>
+                  <div className="contact-info-value">
+                    {selectedDriver.phone || "Not provided"}
+                  </div>
+                </div>
+
+                <div className="contact-info-item">
+                  <div className="contact-info-label">Email:</div>
+                  <div className="contact-info-value">
+                    {selectedDriver.email || "Not provided"}
+                  </div>
+                </div>
+
+                <div className="contact-info-item">
+                  <div className="contact-info-label">Car Model:</div>
+                  <div className="contact-info-value">
+                    {selectedDriver.carModel || "Not provided"}
+                  </div>
+                </div>
+
+                <div className="contact-info-item">
+                  <div className="contact-info-label">License Plate:</div>
+                  <div className="contact-info-value">
+                    {selectedDriver.licensePlate || "Not provided"}
+                  </div>
+                </div>
+
+                <div className="contact-info-item">
+                  <div className="contact-info-label">Wallet Address:</div>
+                  <div className="contact-info-value contact-wallet-address">
+                    {selectedDriver.metaAccount ||
+                      selectedDriver.walletAddress ||
+                      "Not provided"}
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>

@@ -182,6 +182,19 @@
   flex: 0.6;
   height: calc(100vh - 70px);
   border-left: 1px solid rgba(255, 255, 255, 0.05);
+  position: relative;
+}
+
+/* Add styles for Google Maps */
+.map-container > div {
+  width: 100%;
+  height: 100%;
+}
+
+/* Ensure the Map component fills its container */
+[class*="google-map-"] {
+  width: 100%;
+  height: 100%;
 }
 
 /* Post Ride Form with modern styling */

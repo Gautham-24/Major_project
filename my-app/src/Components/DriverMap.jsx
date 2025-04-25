@@ -1035,6 +1035,9 @@ function DriverMap() {
 
       // Fetch updated rides
       fetchMyRides();
+
+      // Navigate to rides view after successful posting
+      navigate("/DriverMap?view=rides", { replace: true });
     } catch (error) {
       console.error("Error posting ride:", error);
       if (error.response) {
@@ -1194,6 +1197,28 @@ function DriverMap() {
 
         {/* Main content */}
         <div className="driver-map-main">
+          {/* Map container - only shown when showMap is true */}
+          {showMap && (
+            <div className="map-container">
+              <APIProvider apiKey="AIzaSyA5693GMMHGbrWou8pkCxTfjYndhs27sy0">
+                <Map
+                  center={currentPosition || { lat: 43.6532, lng: -79.3832 }}
+                  zoom={12}
+                  mapId="8e0a97af9386fef"
+                  onClick={handleMapClick}
+                >
+                  {currentPosition && <Marker position={currentPosition} />}
+                  {pickupLocation && (
+                    <Marker position={pickupLocation} title="Pickup Location" />
+                  )}
+                  {destination && (
+                    <Marker position={destination} title="Destination" />
+                  )}
+                </Map>
+              </APIProvider>
+            </div>
+          )}
+
           {/* Your existing content, but remove the driver controls */}
           <div className={`driver-map-content ${showMap ? "with-map" : ""}`}>
             {/* Post Ride Form - Always visible by default */}

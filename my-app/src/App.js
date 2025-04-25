@@ -15,11 +15,8 @@ function App() {
   const [hasApiKey, setHasApiKey] = useState(true);
 
   useEffect(() => {
-    // Check if the API key is set
-    const apiKey = process.env.REACT_APP_GOOGLE_MAPS_API_KEY;
-    if (!apiKey || apiKey === "YOUR_GOOGLE_MAPS_API_KEY_HERE") {
-      setHasApiKey(false);
-    }
+    // Always set to true since we're using a hardcoded key in the components
+    setHasApiKey(true);
   }, []);
 
   if (!hasApiKey) {
