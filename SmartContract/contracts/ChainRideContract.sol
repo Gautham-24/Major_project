@@ -20,6 +20,9 @@ contract ChainRideContract {
         string carColor;
         bool isActive;
         uint256 timestamp;
+        uint256 completedRides;   // Number of completed rides
+        uint256 activeRides;      // Number of active rides
+        uint256 totalEarnings;    // Total earnings in wei
     }
     
     struct Client {
@@ -166,6 +169,9 @@ contract ChainRideContract {
         newDriver.carColor = _carColor;
         newDriver.isActive = true;
         newDriver.timestamp = block.timestamp;
+        newDriver.completedRides = 0;
+        newDriver.activeRides = 0;
+        newDriver.totalEarnings = 0;
         
         driverAddressToId[msg.sender] = newDriverId;
         allDriverIds.push(newDriverId);
@@ -274,6 +280,9 @@ contract ChainRideContract {
         
         allRideIds.push(newRideId);
         
+        // Increment active rides count for the driver
+        drivers[driverId].activeRides += 1;
+        
         emit RideCreated(newRideId, driverId, _price);
         return newRideId;
     }
@@ -376,6 +385,11 @@ contract ChainRideContract {
         
         ride.status = "completed";
         
+        // Update driver statistics
+        uint256 driverId = ride.driverId;
+        drivers[driverId].completedRides += 1;
+        drivers[driverId].activeRides -= 1;
+        
         emit RideCompleted(_rideId);
     }
     
@@ -407,6 +421,9 @@ contract ChainRideContract {
         // Mark the passenger as having confirmed payment
         passengers[passengerIdFound].paid = true;
         passengers[passengerIdFound].status = "confirmed";
+        
+        // Update driver's total earnings
+        drivers[ride.driverId].totalEarnings += msg.value;
         
         // Transfer funds to the driver's wallet
         payable(ride.driverWalletAddress).transfer(msg.value);
@@ -440,6 +457,9 @@ contract ChainRideContract {
         require(keccak256(bytes(ride.status)) == keccak256(bytes("active")), "Ride cannot be cancelled at this stage");
         
         ride.status = "cancelled";
+        
+        // Decrement active rides for the driver
+        drivers[ride.driverId].activeRides -= 1;
         
         emit RideCancelled(_rideId);
     }
@@ -623,5 +643,14 @@ contract ChainRideContract {
         }
         
         return rideRatingIds;
+    }
+    
+    // New function to get driver statistics
+    function getDriverStats(uint256 _driverId) public view returns (uint256 completedRides, uint256 activeRides, uint256 totalEarnings) {
+        require(_driverId > 0, "Driver ID must be greater than 0");
+        require(drivers[_driverId].id > 0, "Driver does not exist");
+        
+        Driver storage driver = drivers[_driverId];
+        return (driver.completedRides, driver.activeRides, driver.totalEarnings);
     }
 }

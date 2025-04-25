@@ -2152,8 +2152,9 @@ function ClientLocation() {
               </p>
               <RatingComponent
                 driverId={rideToRate.driverId}
+                rideId={rideToRate.rideId}
+                onRatingSubmitted={handleRatingSubmitted}
                 readOnly={false}
-                onSubmit={handleRatingSubmitted}
               />
             </div>
           </div>

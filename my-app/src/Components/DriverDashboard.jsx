@@ -59,23 +59,41 @@ function DriverDashboard() {
         if (response.data.success && response.data.driver) {
           setDriverData(response.data.driver);
 
-          // Sample code to fetch ride statistics
-          // In a real app, you would fetch this from your backend
+          // Fetch real driver statistics from the backend
           try {
-            // This is just a placeholder - replace with actual API call
-            // const statsResponse = await axios.get(
-            //   `http://localhost:8080/api/driver-statistics/${driverId}`,
-            //   { withCredentials: true }
-            // );
+            const statsResponse = await axios.get(
+              `http://localhost:8080/api/driver-stats/${driverId}`,
+              { withCredentials: true }
+            );
 
-            // Instead of actual API, using mock data for now
-            setRideStats({
-              completed: Math.floor(Math.random() * 20),
-              active: Math.floor(Math.random() * 3),
-              totalEarnings: Math.floor(Math.random() * 1000),
-            });
+            if (statsResponse.data.success && statsResponse.data.stats) {
+              const { completedRides, activeRides, totalEarnings } =
+                statsResponse.data.stats;
+              setRideStats({
+                completed: completedRides || 0,
+                active: activeRides || 0,
+                totalEarnings: parseFloat(totalEarnings) || 0,
+              });
+            } else {
+              // If stats cannot be fetched, use zero values
+              setRideStats({
+                completed: 0,
+                active: 0,
+                totalEarnings: 0,
+              });
+              console.error(
+                "Error in stats response:",
+                statsResponse.data.message
+              );
+            }
           } catch (statsError) {
             console.error("Error fetching ride statistics:", statsError);
+            // If error occurs, use zero values
+            setRideStats({
+              completed: 0,
+              active: 0,
+              totalEarnings: 0,
+            });
           }
         } else {
           setError("Failed to load driver data");
@@ -226,7 +244,9 @@ function DriverDashboard() {
             <FaWallet />
           </div>
           <div className="stat-details">
-            <h3 className="stat-value">${rideStats.totalEarnings}</h3>
+            <h3 className="stat-value">
+              {rideStats.totalEarnings.toFixed(4)} ETH
+            </h3>
             <p className="stat-label">Total Earnings</p>
           </div>
         </div>
@@ -317,6 +337,35 @@ function DriverDashboard() {
             <div className="info-group">
               <label>Car Color:</label>
               <p>{driverData.carColor || "Not provided"}</p>
+            </div>
+
+            <div className="info-group ride-stats">
+              <label>Ride Statistics:</label>
+              <div className="profile-stats">
+                <div className="profile-stat-item">
+                  <span className="stat-icon-small completed">
+                    <FaClipboardList />
+                  </span>
+                  <span className="stat-label">Completed:</span>
+                  <span className="stat-value">{rideStats.completed}</span>
+                </div>
+                <div className="profile-stat-item">
+                  <span className="stat-icon-small active">
+                    <FaCarAlt />
+                  </span>
+                  <span className="stat-label">Active:</span>
+                  <span className="stat-value">{rideStats.active}</span>
+                </div>
+                <div className="profile-stat-item">
+                  <span className="stat-icon-small earnings">
+                    <FaWallet />
+                  </span>
+                  <span className="stat-label">Earnings:</span>
+                  <span className="stat-value">
+                    {rideStats.totalEarnings.toFixed(4)} ETH
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
         </div>

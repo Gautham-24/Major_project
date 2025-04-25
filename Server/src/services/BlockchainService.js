@@ -1685,6 +1685,31 @@ class BlockchainService {
       };
     }
   }
+
+  // Add a function to get driver statistics
+  async getDriverStats(driverId) {
+    try {
+      if (!this.isInitialized) {
+        console.error("Blockchain service not initialized");
+        return { success: false, error: "Blockchain service not initialized" };
+      }
+
+      const stats = await this.contract.methods.getDriverStats(driverId).call();
+
+      return {
+        success: true,
+        completedRides: parseInt(stats.completedRides),
+        activeRides: parseInt(stats.activeRides),
+        totalEarnings: this.web3.utils.fromWei(
+          stats.totalEarnings.toString(),
+          "ether"
+        ),
+      };
+    } catch (error) {
+      console.error("Error getting driver statistics:", error);
+      return { success: false, error: error.message };
+    }
+  }
 }
 
 // Export the class instance

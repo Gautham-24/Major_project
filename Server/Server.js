@@ -1932,6 +1932,46 @@ app.get("/api/rides/:rideId/ratings", async (req, res) => {
   }
 });
 
+// Get driver statistics
+app.get("/api/driver-stats/:driverId", async (req, res) => {
+  try {
+    const { driverId } = req.params;
+
+    if (!driverId) {
+      return res.status(400).json({
+        success: false,
+        message: "Driver ID is required",
+      });
+    }
+
+    // Get driver statistics from blockchain
+    const stats = await blockchainService.getDriverStats(driverId);
+
+    if (stats.success) {
+      res.status(200).json({
+        success: true,
+        stats: {
+          completedRides: stats.completedRides,
+          activeRides: stats.activeRides,
+          totalEarnings: stats.totalEarnings,
+        },
+      });
+    } else {
+      res.status(400).json({
+        success: false,
+        message: stats.error || "Failed to get driver statistics",
+      });
+    }
+  } catch (error) {
+    console.error("Error getting driver statistics:", error.message);
+    res.status(500).json({
+      success: false,
+      message: "Error getting driver statistics",
+      error: error.message,
+    });
+  }
+});
+
 // Start server with improved error handling
 const startServer = async () => {
   try {
