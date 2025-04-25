@@ -1121,3 +1121,71 @@
 .rating-modal-close:hover {
   color: var(--text-light);
 }
+
+/* Ride Search Bar Styles */
+.ride-search-bar {
+  margin-bottom: 20px;
+  padding: 15px;
+  background-color: var(--dark-card);
+  border-radius: var(--border-radius);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: var(--card-shadow);
+}
+
+.search-input-container {
+  position: relative;
+  width: 100%;
+}
+
+.ride-search-input {
+  width: 100%;
+  padding: 12px 15px;
+  padding-right: 40px; /* Space for the clear button */
+  background-color: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--border-radius);
+  font-size: 14px;
+  color: var(--text-light);
+  transition: var(--transition);
+}
+
+.ride-search-input:focus {
+  border-color: var(--primary);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(82, 98, 234, 0.1);
+}
+
+.ride-search-input::placeholder {
+  color: var(--text-muted);
+}
+
+.clear-search-button {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  font-size: 20px;
+  color: var(--text-muted);
+  cursor: pointer;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: var(--transition);
+}
+
+.clear-search-button:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: var(--text-main);
+}
+
+.search-results-count {
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--text-muted);
+  text-align: right;
+}

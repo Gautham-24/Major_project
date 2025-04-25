@@ -89,6 +89,9 @@ function ClientLocation() {
   const [updateLoading, setUpdateLoading] = useState(false);
   const [updateError, setUpdateError] = useState(null);
 
+  // Add search term state for filtering rides
+  const [searchTerm, setSearchTerm] = useState("");
+
   // Fetch client profile data on component mount
   useEffect(() => {
     const fetchClientProfile = async () => {
@@ -1580,158 +1583,211 @@ function ClientLocation() {
   );
 
   // Available rides section
-  const renderAvailableRides = () => (
-    <div className="available-rides-section">
-      <div className="section-header">
-        <h2>Available Rides</h2>
-        <div className="section-controls">
-          <button className="toggle-map-button" onClick={toggleMap}>
-            {showMap ? "Hide Map" : "Show Map"}
-          </button>
+  const renderAvailableRides = () => {
+    // Filter rides based on search term
+    const filteredRides = availableRides.filter((ride) => {
+      // Check if any of these fields match the search term (case insensitive)
+      return (
+        (ride.destination &&
+          ride.destination.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (ride.destinationName &&
+          ride.destinationName
+            .toLowerCase()
+            .includes(searchTerm.toLowerCase())) ||
+        (ride.startLocation &&
+          ride.startLocation
+            .toLowerCase()
+            .includes(searchTerm.toLowerCase())) ||
+        (ride.startLocationName &&
+          ride.startLocationName
+            .toLowerCase()
+            .includes(searchTerm.toLowerCase()))
+      );
+    });
+
+    return (
+      <div className="available-rides-section">
+        <div className="section-header">
+          <h2>Available Rides</h2>
+          {/* <div className="section-controls">
+            <button className="toggle-map-button" onClick={toggleMap}>
+              {showMap ? "Hide Map" : "Show Map"}
+            </button>
+          </div> */}
         </div>
-      </div>
 
-      {showMap && (
-        <div className="map-search-controls">
-          <p className="Driver-Search-Para">Enter Your Destination</p>
-          <input
-            type="text"
-            className="LocationFinder-Text"
-            value={destinationInput}
-            onChange={(e) => setDestinationInput(e.target.value)}
-            placeholder="Enter your destination"
-          />
-          <button className="Client-Search-Button" onClick={geocodeDestination}>
-            Search
-          </button>
-        </div>
-      )}
-
-      {isLoading ? (
-        <div className="loading-indicator">Loading rides...</div>
-      ) : availableRides.length > 0 ? (
-        <div className="rides-container">
-          {availableRides.map((ride) => (
-            <div
-              key={ride.rideId}
-              className={`ride-item ${
-                selectedRide && selectedRide.rideId === ride.rideId
-                  ? "selected"
-                  : ""
-              } ${ride.requestStatus ? `status-${ride.requestStatus}` : ""}`}
-              onClick={() => setSelectedRide(ride)}
-            >
-              <div className="ride-header">
-                <h4>Ride #{ride.rideId}</h4>
-                <div className="status-badge-container">
-                  {ride.status === "active" && (
-                    <span className="status active">Active</span>
-                  )}
-                  {ride.status === "in_progress" && (
-                    <span className="status in_progress">In Progress</span>
-                  )}
-                  {ride.status === "completed" && ride.paymentPending && (
-                    <span className="status payment-pending">
-                      Payment Pending
-                    </span>
-                  )}
-                  {ride.status === "completed" && !ride.paymentPending && (
-                    <span className="status completed">Completed</span>
-                  )}
-                  {(ride.status === "canceled" ||
-                    ride.status === "cancelled") && (
-                    <span className="status cancelled">Canceled</span>
-                  )}
-                </div>
-                <div className="ride-driver-info">
-                  <span>Driver #{ride.driverId}</span>
-                  {ride.driverId && (
-                    <RatingComponent driverId={ride.driverId} readOnly={true} />
-                  )}
-                </div>
-              </div>
-
-              <div className="ride-details">
-                <div className="detail-item">
-                  <span className="detail-label">From</span>
-                  <span className="detail-value">
-                    {ride.startLocation || ride.startLocationName || "Unknown"}
-                  </span>
-                </div>
-                <div className="detail-item">
-                  <span className="detail-label">To</span>
-                  <span className="detail-value">
-                    {ride.destination || ride.destinationName || "Unknown"}
-                  </span>
-                </div>
-                <div className="detail-item">
-                  <span className="detail-label">Price</span>
-                  <span className="detail-value">{ride.price} ETH</span>
-                </div>
-                <div className="detail-item">
-                  <span className="detail-label">Departure</span>
-                  <span className="detail-value">
-                    {ride.departureTime
-                      ? new Date(ride.departureTime).toLocaleString()
-                      : "Flexible"}
-                  </span>
-                </div>
-                <div className="detail-item">
-                  <span className="detail-label">Driver Rating</span>
-                  <RatingComponent driverId={ride.driverId} readOnly={true} />
-                </div>
-              </div>
-
-              {ride.requestStatus && (
-                <div className="request-status-container">
-                  <span className={`request-status ${ride.requestStatus}`}>
-                    {ride.requestStatus === "pending" && "Request Pending"}
-                    {ride.requestStatus === "accepted" && "Request Accepted"}
-                    {ride.requestStatus === "rejected" && "Request Rejected"}
-                  </span>
-                </div>
-              )}
-
-              {!ride.requestStatus && (
-                <div className="ride-actions">
-                  <button
-                    className="request-ride-button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      requestRide(ride.rideId);
-                    }}
-                    disabled={isLoading}
-                  >
-                    Request Ride
-                  </button>
-                </div>
-              )}
+        {/* Add search bar */}
+        <div className="ride-search-bar">
+          <div className="search-input-container">
+            <input
+              type="text"
+              placeholder="Search for destination"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="ride-search-input"
+            />
+            {searchTerm && (
+              <button
+                className="clear-search-button"
+                onClick={() => setSearchTerm("")}
+                title="Clear search"
+              >
+                ×
+              </button>
+            )}
+          </div>
+          {availableRides.length > 0 && (
+            <div className="search-results-count">
+              Showing {filteredRides.length} of {availableRides.length} rides
             </div>
-          ))}
+          )}
         </div>
-      ) : (
-        <div className="no-rides-message">
-          No available rides at the moment. Please check back later.
-        </div>
-      )}
 
-      {/* Only show the map when showMap is true */}
-      {showMap && (
-        <div className="map-container">
-          <Map
-            googleMapsApiKey={process.env.REACT_APP_GOOGLE_MAPS_API_KEY}
-            libraries={["geometry"]}
-            center={currentDestination}
-            zoom={12}
-          >
-            <APIProvider apiKey={process.env.REACT_APP_GOOGLE_MAPS_API_KEY}>
-              <Marker position={currentDestination} />
-            </APIProvider>
-          </Map>
-        </div>
-      )}
-    </div>
-  );
+        {isLoading ? (
+          <div className="loading-indicator">Loading rides...</div>
+        ) : availableRides.length > 0 ? (
+          <div className="rides-container">
+            {/* Show filtered rides instead of all rides */}
+            {filteredRides.length > 0 ? (
+              filteredRides.map((ride) => (
+                <div
+                  key={ride.rideId}
+                  className={`ride-item ${
+                    selectedRide && selectedRide.rideId === ride.rideId
+                      ? "selected"
+                      : ""
+                  } ${
+                    ride.requestStatus ? `status-${ride.requestStatus}` : ""
+                  }`}
+                  onClick={() => setSelectedRide(ride)}
+                >
+                  <div className="ride-header">
+                    <h4>Ride #{ride.rideId}</h4>
+                    <div className="status-badge-container">
+                      {ride.status === "active" && (
+                        <span className="status active">Active</span>
+                      )}
+                      {ride.status === "in_progress" && (
+                        <span className="status in_progress">In Progress</span>
+                      )}
+                      {ride.status === "completed" && ride.paymentPending && (
+                        <span className="status payment-pending">
+                          Payment Pending
+                        </span>
+                      )}
+                      {ride.status === "completed" && !ride.paymentPending && (
+                        <span className="status completed">Completed</span>
+                      )}
+                      {(ride.status === "canceled" ||
+                        ride.status === "cancelled") && (
+                        <span className="status cancelled">Canceled</span>
+                      )}
+                    </div>
+                    <div className="ride-driver-info">
+                      <span>Driver #{ride.driverId}</span>
+                      {ride.driverId && (
+                        <RatingComponent
+                          driverId={ride.driverId}
+                          readOnly={true}
+                        />
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="ride-details">
+                    <div className="detail-item">
+                      <span className="detail-label">From</span>
+                      <span className="detail-value">
+                        {ride.startLocation ||
+                          ride.startLocationName ||
+                          "Unknown"}
+                      </span>
+                    </div>
+                    <div className="detail-item">
+                      <span className="detail-label">To</span>
+                      <span className="detail-value">
+                        {ride.destination || ride.destinationName || "Unknown"}
+                      </span>
+                    </div>
+                    <div className="detail-item">
+                      <span className="detail-label">Price</span>
+                      <span className="detail-value">{ride.price} ETH</span>
+                    </div>
+                    <div className="detail-item">
+                      <span className="detail-label">Departure</span>
+                      <span className="detail-value">
+                        {ride.departureTime
+                          ? new Date(ride.departureTime).toLocaleString()
+                          : "Flexible"}
+                      </span>
+                    </div>
+                    <div className="detail-item">
+                      <span className="detail-label">Driver Rating</span>
+                      <RatingComponent
+                        driverId={ride.driverId}
+                        readOnly={true}
+                      />
+                    </div>
+                  </div>
+
+                  {ride.requestStatus && (
+                    <div className="request-status-container">
+                      <span className={`request-status ${ride.requestStatus}`}>
+                        {ride.requestStatus === "pending" && "Request Pending"}
+                        {ride.requestStatus === "accepted" &&
+                          "Request Accepted"}
+                        {ride.requestStatus === "rejected" &&
+                          "Request Rejected"}
+                      </span>
+                    </div>
+                  )}
+
+                  {!ride.requestStatus && (
+                    <div className="ride-actions">
+                      <button
+                        className="request-ride-button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          requestRide(ride.rideId);
+                        }}
+                        disabled={isLoading}
+                      >
+                        Request Ride
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))
+            ) : (
+              <div className="no-rides-message">
+                No rides match your search. Try different search terms.
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="no-rides-message">
+            No available rides at the moment. Please check back later.
+          </div>
+        )}
+
+        {/* Only show the map when showMap is true */}
+        {showMap && (
+          <div className="map-container">
+            <Map
+              googleMapsApiKey={process.env.REACT_APP_GOOGLE_MAPS_API_KEY}
+              libraries={["geometry"]}
+              center={currentDestination}
+              zoom={12}
+            >
+              <APIProvider apiKey={process.env.REACT_APP_GOOGLE_MAPS_API_KEY}>
+                <Marker position={currentDestination} />
+              </APIProvider>
+            </Map>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   // Add a new function to show the rating modal
   const openRatingModal = (ride) => {
