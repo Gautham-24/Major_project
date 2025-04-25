@@ -183,6 +183,60 @@ app.get("/api/driver-by-account/:metaAccount", async (req, res) => {
   }
 });
 
+// Update driver profile
+app.put("/api/driver/update", async (req, res) => {
+  try {
+    const {
+      metaAccount,
+      name,
+      email,
+      phone,
+      carModel,
+      licensePlate,
+      carColor,
+    } = req.body;
+
+    if (!metaAccount) {
+      return res.status(400).json({
+        success: false,
+        message: "metaAccount is required",
+      });
+    }
+
+    // Update driver on blockchain
+    const result = await blockchainService.updateDriver(
+      metaAccount,
+      name,
+      email,
+      phone,
+      carModel,
+      licensePlate,
+      carColor
+    );
+
+    if (result.success) {
+      // Get updated driver details
+      const updatedDriver = await blockchainService.getDriver(result.driverId);
+      return res.status(200).json({
+        success: true,
+        driver: updatedDriver,
+      });
+    } else {
+      return res.status(400).json({
+        success: false,
+        message: result.error || "Failed to update driver",
+      });
+    }
+  } catch (error) {
+    console.error("Error updating driver:", error.message);
+    res.status(500).json({
+      success: false,
+      message: "Error updating driver",
+      error: error.message,
+    });
+  }
+});
+
 // Client endpoints
 app.post("/api/client-register", async (req, res) => {
   try {
@@ -412,6 +466,49 @@ app.get("/api/client-by-account/:account", async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Error getting client by account",
+      error: error.message,
+    });
+  }
+});
+
+// Update client profile
+app.put("/api/client/update", async (req, res) => {
+  try {
+    const { metaAccount, name, email, phone } = req.body;
+
+    if (!metaAccount) {
+      return res.status(400).json({
+        success: false,
+        message: "metaAccount is required",
+      });
+    }
+
+    // Update client on blockchain
+    const result = await blockchainService.updateClient(
+      metaAccount,
+      name,
+      email,
+      phone
+    );
+
+    if (result.success) {
+      // Get updated client details
+      const updatedClient = await blockchainService.getClient(result.clientId);
+      return res.status(200).json({
+        success: true,
+        client: updatedClient,
+      });
+    } else {
+      return res.status(400).json({
+        success: false,
+        message: result.error || "Failed to update client",
+      });
+    }
+  } catch (error) {
+    console.error("Error updating client:", error.message);
+    res.status(500).json({
+      success: false,
+      message: "Error updating client",
       error: error.message,
     });
   }

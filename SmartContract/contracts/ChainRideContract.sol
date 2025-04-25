@@ -117,7 +117,9 @@ contract ChainRideContract {
     
     // Events
     event DriverRegistered(uint256 indexed driverId, address indexed walletAddress);
+    event DriverUpdated(uint256 indexed driverId, address indexed walletAddress);
     event ClientRegistered(uint256 indexed clientId, address indexed walletAddress);
+    event ClientUpdated(uint256 indexed clientId, address indexed walletAddress);
     event RideCreated(uint256 indexed rideId, uint256 indexed driverId, uint256 price);
     event RideRequested(uint256 indexed rideId, uint256 indexed clientId, uint256 requestId);
     event RideRequestAccepted(uint256 indexed rideId, uint256 indexed clientId);
@@ -172,6 +174,33 @@ contract ChainRideContract {
         return newDriverId;
     }
     
+    // Update driver information
+    function updateDriver(
+        string memory _name,
+        string memory _email,
+        string memory _phone,
+        string memory _carModel,
+        string memory _licensePlate,
+        string memory _carColor
+    ) public returns (bool) {
+        uint256 driverId = driverAddressToId[msg.sender];
+        require(driverId > 0, "Driver not registered");
+        
+        Driver storage driver = drivers[driverId];
+        require(driver.walletAddress == msg.sender, "Only driver can update their own profile");
+        
+        driver.name = _name;
+        driver.email = _email;
+        driver.phone = _phone;
+        driver.carModel = _carModel;
+        driver.licensePlate = _licensePlate;
+        driver.carColor = _carColor;
+        
+        emit DriverUpdated(driverId, msg.sender);
+        
+        return true;
+    }
+    
     // Client functions
     function registerClient(
         string memory _name,
@@ -195,6 +224,28 @@ contract ChainRideContract {
         
         emit ClientRegistered(newClientId, msg.sender);
         return newClientId;
+    }
+    
+    // Update client information
+    function updateClient(
+        string memory _name,
+        string memory _email,
+        string memory _phone
+    ) public returns (bool) {
+        uint256 clientId = clientAddressToId[msg.sender];
+        require(clientId > 0, "Client not registered");
+        
+        Client storage client = clients[clientId];
+        require(client.walletAddress == msg.sender, "Only client can update their own profile");
+        
+        client.name = _name;
+        client.email = _email;
+        client.phone = _phone;
+        
+        // Consider adding a ClientUpdated event here
+        emit ClientUpdated(clientId, msg.sender);
+        
+        return true;
     }
     
     // Ride functions

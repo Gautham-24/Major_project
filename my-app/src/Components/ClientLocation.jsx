@@ -79,6 +79,16 @@ function ClientLocation() {
   const [showRatingModal, setShowRatingModal] = useState(false);
   const [rideToRate, setRideToRate] = useState(null);
 
+  // Add state for profile edit modal
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editFormData, setEditFormData] = useState({
+    name: "",
+    email: "",
+    phone: "",
+  });
+  const [updateLoading, setUpdateLoading] = useState(false);
+  const [updateError, setUpdateError] = useState(null);
+
   // Fetch client profile data on component mount
   useEffect(() => {
     const fetchClientProfile = async () => {
@@ -1104,7 +1114,7 @@ function ClientLocation() {
       if (availableRides.length > 0) {
         updateRideStatuses();
       }
-    }, 10000); // 10 seconds
+    }, 100); // 10 seconds
 
     // Clear the interval when component unmounts
     return () => clearInterval(statusInterval);
@@ -1371,6 +1381,75 @@ function ClientLocation() {
     navigate("/ClientLogin");
   };
 
+  // Function to open the edit modal and populate the form with current client data
+  const openEditModal = () => {
+    // Set form data with current client information
+    if (clientData) {
+      setEditFormData({
+        name: clientData.name || "",
+        email: clientData.email || "",
+        phone: clientData.phone || "",
+      });
+      setShowEditModal(true);
+    }
+  };
+
+  // Handle input changes in the edit form
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setEditFormData((prevData) => ({
+      ...prevData,
+      [name]: value,
+    }));
+  };
+
+  // Handle form submission for profile update
+  const handleUpdateProfile = async (e) => {
+    e.preventDefault();
+    setUpdateLoading(true);
+    setUpdateError(null);
+
+    try {
+      const metaAccount = localStorage.getItem("metaAccount");
+      if (!metaAccount) {
+        setUpdateError("Authentication error. Please log in again.");
+        setUpdateLoading(false);
+        return;
+      }
+
+      // Call the API endpoint to update the client
+      const response = await axios.put(
+        "http://localhost:8080/api/client/update",
+        {
+          metaAccount,
+          name: editFormData.name,
+          email: editFormData.email,
+          phone: editFormData.phone,
+        },
+        { withCredentials: true }
+      );
+
+      if (response.data.success) {
+        // Update local state with new client data
+        setClientData(response.data.updatedClient);
+        setShowEditModal(false);
+
+        // Show success message or notification if needed
+        // (you could add a state for success message here)
+      } else {
+        setUpdateError(response.data.message || "Failed to update profile");
+      }
+    } catch (err) {
+      console.error("Error updating profile:", err);
+      setUpdateError(
+        err.response?.data?.message ||
+          "An error occurred while updating your profile"
+      );
+    } finally {
+      setUpdateLoading(false);
+    }
+  };
+
   // Profile section render
   const renderProfile = () => (
     <div className="profile-content">
@@ -1419,6 +1498,84 @@ function ClientLocation() {
       ) : (
         <div className="loading-indicator">Loading profile...</div>
       )}
+
+      <div className="profile-actions">
+        <button className="edit-profile-btn" onClick={openEditModal}>
+          Edit Profile
+        </button>
+      </div>
+    </div>
+  );
+
+  // Edit Profile Modal
+  const renderEditProfileModal = () => (
+    <div className={`edit-profile-modal ${showEditModal ? "show" : ""}`}>
+      <div className="modal-content">
+        <div className="modal-header">
+          <h2>Edit Profile</h2>
+          <button className="close-btn" onClick={() => setShowEditModal(false)}>
+            ×
+          </button>
+        </div>
+
+        <form onSubmit={handleUpdateProfile}>
+          <div className="form-group">
+            <label htmlFor="name">Name</label>
+            <input
+              type="text"
+              id="name"
+              name="name"
+              value={editFormData.name}
+              onChange={handleInputChange}
+              required
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="email">Email</label>
+            <input
+              type="email"
+              id="email"
+              name="email"
+              value={editFormData.email}
+              onChange={handleInputChange}
+              required
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="phone">Phone</label>
+            <input
+              type="text"
+              id="phone"
+              name="phone"
+              value={editFormData.phone}
+              onChange={handleInputChange}
+              required
+            />
+          </div>
+
+          {updateError && <div className="error-message">{updateError}</div>}
+
+          <div className="modal-actions">
+            <button
+              type="button"
+              className="cancel-btn"
+              onClick={() => setShowEditModal(false)}
+              disabled={updateLoading}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="update-btn"
+              disabled={updateLoading}
+            >
+              {updateLoading ? "Updating..." : "Update Profile"}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 
@@ -1818,22 +1975,25 @@ function ClientLocation() {
     <div className="client-dashboard-wrapper">
       {/* Header */}
       <div className="dashboard-header">
-        <div className="dashboard-logo">
+        <div
+          className="dashboard-logo"
+          onClick={() => setActiveSection("availableRides")}
+        >
           <h1>RideApp</h1>
         </div>
         <div className="dashboard-user">
           {clientData && (
             <>
               <span className="user-greeting">
-                Hello, {clientData.name || "Rider"}
+                Hello, {clientData.name || "Client"}
               </span>
               <div
                 className="user-avatar"
                 onClick={() => setActiveSection("profile")}
               >
-                {clientData.name
+                {clientData && clientData.name
                   ? clientData.name.charAt(0).toUpperCase()
-                  : "R"}
+                  : "C"}
               </div>
             </>
           )}
@@ -1846,14 +2006,17 @@ function ClientLocation() {
         <div className="dashboard-sidebar">
           <div className="sidebar-profile">
             {clientData && (
-              <div className="sidebar-avatar">
+              <div
+                className="sidebar-avatar"
+                onClick={() => setActiveSection("profile")}
+              >
                 {clientData.name
                   ? clientData.name.charAt(0).toUpperCase()
-                  : "R"}
+                  : "C"}
               </div>
             )}
             <div className="sidebar-user-info">
-              <h3>{clientData ? clientData.name || "Rider" : "Rider"}</h3>
+              <h3>{clientData ? clientData.name || "Client" : "Client"}</h3>
               <p className="user-status">Online</p>
             </div>
           </div>
@@ -1915,23 +2078,34 @@ function ClientLocation() {
 
       {/* Rating Modal */}
       {showRatingModal && rideToRate && (
-        <div className="rating-modal">
-          <div className="rating-modal-content">
-            <span
-              className="rating-modal-close"
-              onClick={() => setShowRatingModal(false)}
-            >
-              &times;
-            </span>
-            <RatingComponent
-              rideId={rideToRate.rideId}
-              driverId={rideToRate.driverId}
-              driverName={`Driver #${rideToRate.driverId}`}
-              onRatingSubmitted={handleRatingSubmitted}
-            />
+        <div className="rating-modal-overlay">
+          <div className="rating-modal">
+            <div className="rating-modal-header">
+              <h3>Rate Your Ride</h3>
+              <button
+                className="close-btn"
+                onClick={() => setShowRatingModal(false)}
+              >
+                ×
+              </button>
+            </div>
+            <div className="rating-modal-body">
+              <p>
+                How would you rate your experience with driver #
+                {rideToRate.driverId}?
+              </p>
+              <RatingComponent
+                driverId={rideToRate.driverId}
+                readOnly={false}
+                onSubmit={handleRatingSubmitted}
+              />
+            </div>
           </div>
         </div>
       )}
+
+      {/* Edit Profile Modal */}
+      {renderEditProfileModal()}
     </div>
   );
 }

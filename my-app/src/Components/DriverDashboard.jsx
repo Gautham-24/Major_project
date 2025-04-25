@@ -24,6 +24,18 @@ function DriverDashboard() {
     totalEarnings: 0,
   });
   const [driverRating, setDriverRating] = useState({ average: 0, total: 0 });
+  // Add state for profile edit modal
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editFormData, setEditFormData] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    carModel: "",
+    licensePlate: "",
+    carColor: "",
+  });
+  const [updateLoading, setUpdateLoading] = useState(false);
+  const [updateError, setUpdateError] = useState(null);
 
   useEffect(() => {
     const fetchDriverData = async () => {
@@ -112,6 +124,74 @@ function DriverDashboard() {
       navigate("/DriverMap?view=post");
     } else {
       navigate("/DriverMap?view=rides");
+    }
+  };
+
+  // Function to open edit modal and populate form with current data
+  const openEditModal = () => {
+    if (driverData) {
+      setEditFormData({
+        name: driverData.name || "",
+        email: driverData.email || "",
+        phone: driverData.phone || "",
+        carModel: driverData.carModel || "",
+        licensePlate: driverData.licensePlate || "",
+        carColor: driverData.carColor || "",
+      });
+      setShowEditModal(true);
+    }
+  };
+
+  // Function to handle form input changes
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setEditFormData({
+      ...editFormData,
+      [name]: value,
+    });
+  };
+
+  // Function to handle form submission
+  const handleUpdateProfile = async (e) => {
+    e.preventDefault();
+    setUpdateLoading(true);
+    setUpdateError(null);
+
+    try {
+      const metaAccount = localStorage.getItem("metaAccount");
+      if (!metaAccount) {
+        throw new Error("MetaMask account not found. Please log in again.");
+      }
+
+      // Send update request to the backend API
+      const response = await axios.put(
+        "http://localhost:8080/api/driver/update",
+        {
+          metaAccount,
+          name: editFormData.name,
+          email: editFormData.email,
+          phone: editFormData.phone,
+          carModel: editFormData.carModel,
+          licensePlate: editFormData.licensePlate,
+          carColor: editFormData.carColor,
+        },
+        { withCredentials: true }
+      );
+
+      if (response.data.success) {
+        // Update the driver data in state
+        setDriverData(response.data.driver);
+
+        // Close the modal
+        setShowEditModal(false);
+      } else {
+        throw new Error(response.data.message || "Failed to update profile");
+      }
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      setUpdateError(error.message || "Failed to update profile");
+    } finally {
+      setUpdateLoading(false);
     }
   };
 
@@ -245,13 +325,123 @@ function DriverDashboard() {
       )}
 
       <div className="profile-actions">
-        <button className="edit-profile-btn">Edit Profile</button>
+        <button className="edit-profile-btn" onClick={openEditModal}>
+          Edit Profile
+        </button>
         <button
           className="cancel-btn"
           onClick={() => setActiveSection("dashboard")}
         >
           Back to Dashboard
         </button>
+      </div>
+    </div>
+  );
+
+  // Edit Profile Modal
+  const renderEditProfileModal = () => (
+    <div className={`edit-profile-modal ${showEditModal ? "show" : ""}`}>
+      <div className="modal-content">
+        <div className="modal-header">
+          <h2>Edit Profile</h2>
+          <button className="close-btn" onClick={() => setShowEditModal(false)}>
+            ×
+          </button>
+        </div>
+
+        <form onSubmit={handleUpdateProfile}>
+          <div className="form-group">
+            <label htmlFor="name">Name</label>
+            <input
+              type="text"
+              id="name"
+              name="name"
+              value={editFormData.name}
+              onChange={handleInputChange}
+              required
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="email">Email</label>
+            <input
+              type="email"
+              id="email"
+              name="email"
+              value={editFormData.email}
+              onChange={handleInputChange}
+              required
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="phone">Phone</label>
+            <input
+              type="text"
+              id="phone"
+              name="phone"
+              value={editFormData.phone}
+              onChange={handleInputChange}
+              required
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="carModel">Car Model</label>
+            <input
+              type="text"
+              id="carModel"
+              name="carModel"
+              value={editFormData.carModel}
+              onChange={handleInputChange}
+              required
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="licensePlate">License Plate</label>
+            <input
+              type="text"
+              id="licensePlate"
+              name="licensePlate"
+              value={editFormData.licensePlate}
+              onChange={handleInputChange}
+              required
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="carColor">Car Color</label>
+            <input
+              type="text"
+              id="carColor"
+              name="carColor"
+              value={editFormData.carColor}
+              onChange={handleInputChange}
+              required
+            />
+          </div>
+
+          {updateError && <div className="error-message">{updateError}</div>}
+
+          <div className="modal-actions">
+            <button
+              type="button"
+              className="cancel-btn"
+              onClick={() => setShowEditModal(false)}
+              disabled={updateLoading}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="update-btn"
+              disabled={updateLoading}
+            >
+              {updateLoading ? "Updating..." : "Update Profile"}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );
@@ -343,6 +533,9 @@ function DriverDashboard() {
           )}
         </div>
       </div>
+
+      {/* Render the edit profile modal */}
+      {renderEditProfileModal()}
     </div>
   );
 }

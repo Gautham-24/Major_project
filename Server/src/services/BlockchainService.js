@@ -151,6 +151,58 @@ class BlockchainService {
     }
   }
 
+  /**
+   * Update driver information
+   * @param {string} address - Driver's MetaMask account address
+   * @param {string} name - Driver's name
+   * @param {string} email - Driver's email
+   * @param {string} phone - Driver's phone number
+   * @param {string} carModel - Driver's car model
+   * @param {string} licensePlate - Driver's license plate
+   * @param {string} carColor - Driver's car color
+   * @returns {Promise<{success: boolean, error?: string}>} - Result of the operation
+   */
+  async updateDriver(
+    address,
+    name,
+    email,
+    phone,
+    carModel,
+    licensePlate,
+    carColor
+  ) {
+    try {
+      await this.ensureInitialized();
+
+      // Check if driver exists
+      const driverId = await this.getDriverIdByAccount(address);
+      if (!driverId) {
+        return {
+          success: false,
+          error: "Driver not found for this address",
+        };
+      }
+
+      // Call the updateDriver function on the contract
+      const result = await this.contract.methods
+        .updateDriver(name, email, phone, carModel, licensePlate, carColor)
+        .send({
+          from: address,
+          gas: 3000000,
+        });
+
+      console.log("Driver updated successfully:", result);
+
+      return {
+        success: true,
+        driverId,
+      };
+    } catch (error) {
+      console.error("Error updating driver:", error.message);
+      return { success: false, error: error.message };
+    }
+  }
+
   async createRide(
     address,
     startLocation,
@@ -212,6 +264,47 @@ class BlockchainService {
       return { success: true, clientId };
     } catch (error) {
       console.error("Error registering client:", error.message);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Update client information
+   * @param {string} address - Client's MetaMask account address
+   * @param {string} name - Client's name
+   * @param {string} email - Client's email
+   * @param {string} phone - Client's phone number
+   * @returns {Promise<{success: boolean, clientId?: number, error?: string}>} - Result of the operation
+   */
+  async updateClient(address, name, email, phone) {
+    try {
+      await this.ensureInitialized();
+
+      // Check if client exists
+      const clientId = await this.getClientIdByAccount(address);
+      if (!clientId) {
+        return {
+          success: false,
+          error: "Client not found for this address",
+        };
+      }
+
+      // Call the updateClient function on the contract
+      const result = await this.contract.methods
+        .updateClient(name, email, phone)
+        .send({
+          from: address,
+          gas: 3000000,
+        });
+
+      console.log("Client updated successfully:", result);
+
+      return {
+        success: true,
+        clientId,
+      };
+    } catch (error) {
+      console.error("Error updating client:", error.message);
       return { success: false, error: error.message };
     }
   }
