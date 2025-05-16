@@ -1972,6 +1972,107 @@ app.get("/api/driver-stats/:driverId", async (req, res) => {
   }
 });
 
+// Endpoint to get passenger details for a ride
+app.get("/api/rides/:rideId/passengers", async (req, res) => {
+  try {
+    const { rideId } = req.params;
+
+    if (!rideId) {
+      return res.status(400).json({
+        success: false,
+        message: "rideId is required",
+      });
+    }
+
+    // Get the ride from blockchain
+    const ride = await blockchainService.getRide(rideId);
+    if (!ride) {
+      return res.status(404).json({
+        success: false,
+        message: "Ride not found",
+      });
+    }
+
+    // Get passenger IDs
+    const passengerIds = ride.passengerIds || [];
+
+    if (passengerIds.length === 0) {
+      return res.status(200).json({
+        success: true,
+        passengers: [],
+      });
+    }
+
+    // Fetch details for each passenger
+    const passengers = await Promise.all(
+      passengerIds.map(async (passengerId) => {
+        try {
+          // Get passenger details
+          const passenger = await blockchainService.getPassenger(passengerId);
+
+          if (!passenger) {
+            return null;
+          }
+
+          // Get client details
+          const client = await blockchainService.getClient(passenger.clientId);
+
+          // Check payment status
+          let paid = passenger.paid === true || passenger.paid === "true";
+          let paymentStatus = null;
+          let paymentTimestamp = passenger.paymentTimestamp || null;
+
+          if (ride.status === "completed") {
+            // Additional payment verification if needed
+            const detailedStatus = await blockchainService.checkPaymentStatus(
+              rideId,
+              passenger.clientId
+            );
+            paid = detailedStatus.paid;
+            paymentStatus = detailedStatus.status;
+
+            // Use payment timestamp from detailed status if available
+            if (detailedStatus.paymentTimestamp) {
+              paymentTimestamp = detailedStatus.paymentTimestamp;
+            }
+          }
+
+          return {
+            passengerId: passengerId,
+            clientId: passenger.clientId,
+            clientName: client ? client.name : `Client #${passenger.clientId}`,
+            clientWalletAddress: passenger.clientWalletAddress,
+            status: passenger.status,
+            paid: paid,
+            paymentStatus: paymentStatus,
+            paymentTimestamp: paymentTimestamp,
+          };
+        } catch (error) {
+          console.error(`Error getting passenger ${passengerId}:`, error);
+          return null;
+        }
+      })
+    );
+
+    // Filter out null values
+    const validPassengers = passengers.filter(
+      (passenger) => passenger !== null
+    );
+
+    return res.status(200).json({
+      success: true,
+      passengers: validPassengers,
+    });
+  } catch (error) {
+    console.error("Error getting ride passengers:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Error getting ride passengers",
+      error: error.message,
+    });
+  }
+});
+
 // Start server with improved error handling
 const startServer = async () => {
   try {

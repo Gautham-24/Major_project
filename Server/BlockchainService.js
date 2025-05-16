@@ -969,6 +969,46 @@ class BlockchainService {
       return { success: false, error: error.message };
     }
   }
+
+  /**
+   * Get passenger details by ID
+   * @param {string} passengerId - The passenger ID
+   * @returns {Promise<Object|null>} - Passenger details or null if not found
+   */
+  async getPassenger(passengerId) {
+    try {
+      if (!this.isInitialized) {
+        throw new Error("Blockchain service not initialized");
+      }
+
+      console.log(`Getting passenger with ID ${passengerId}`);
+
+      // Get passenger from blockchain
+      const passenger = await this.contract.methods
+        .passengers(passengerId)
+        .call();
+
+      if (
+        !passenger ||
+        passenger.clientWalletAddress ===
+          "0x0000000000000000000000000000000000000000"
+      ) {
+        console.log(`Passenger with ID ${passengerId} not found`);
+        return null;
+      }
+
+      return {
+        id: passengerId,
+        clientId: passenger.clientId,
+        clientWalletAddress: passenger.clientWalletAddress,
+        status: passenger.status,
+        paid: passenger.paid,
+      };
+    } catch (error) {
+      console.error(`Error getting passenger with ID ${passengerId}:`, error);
+      return null;
+    }
+  }
 }
 
 module.exports = new BlockchainService();

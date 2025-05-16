@@ -69,6 +69,9 @@ function DriverMap() {
   const [pickupLocation, setPickupLocation] = useState(null);
   const [driverData, setDriverData] = useState(null);
   const [showRequests, setShowRequests] = useState(false);
+  const [ridePassengers, setRidePassengers] = useState([]);
+  const [passengerLoading, setPassengerLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState("requests");
 
   // This useEffect will run when the component mounts and when the URL changes
   useEffect(() => {
@@ -715,18 +718,45 @@ function DriverMap() {
     console.log("Available seats:", ride.availableSeats);
   };
 
-  // Modify the handleRideSelect function to show requests only when clicked with View Requests button
+  // Add a new function to fetch passenger details including payment status
+  const fetchPassengerDetails = async (rideId) => {
+    try {
+      setPassengerLoading(true);
+      console.log(`Fetching passenger details for ride ${rideId}`);
+
+      const response = await axios.get(
+        `http://localhost:8080/api/rides/${rideId}/passengers`
+      );
+
+      if (response.data.success) {
+        console.log("Ride passengers:", response.data.passengers);
+        setRidePassengers(response.data.passengers);
+      } else {
+        console.error("Error fetching ride passengers:", response.data.message);
+        setRidePassengers([]);
+      }
+    } catch (error) {
+      console.error("Error fetching ride passengers:", error);
+      setRidePassengers([]);
+    } finally {
+      setPassengerLoading(false);
+    }
+  };
+
+  // Update the handleRideSelect function to also fetch passenger details
   const handleRideSelect = (ride) => {
     setSelectedRide(ride);
     logPassengerInfo(ride);
     fetchRideRequests(ride.rideId);
+    fetchPassengerDetails(ride.rideId);
   };
 
-  // Add a function to open the requests panel
+  // Update the openRequestsPanel function to also fetch passenger details
   const openRequestsPanel = (ride) => {
     setSelectedRide(ride);
     logPassengerInfo(ride);
     fetchRideRequests(ride.rideId);
+    fetchPassengerDetails(ride.rideId);
     setShowRequests(true);
   };
 
@@ -1526,8 +1556,8 @@ function DriverMap() {
                       <div className="request-header-container">
                         <h3>
                           {selectedRide
-                            ? `Ride Requests for Ride #${selectedRide.rideId}`
-                            : "Ride Requests"}
+                            ? `Ride #${selectedRide.rideId} Management`
+                            : "Ride Management"}
                         </h3>
                         <button
                           className="close-requests-button"
@@ -1537,118 +1567,227 @@ function DriverMap() {
                           ×
                         </button>
                       </div>
-                      <div className="requests-container">
-                        {isLoading ? (
-                          <div className="loading-spinner"></div>
-                        ) : selectedRide && rideRequests.length > 0 ? (
-                          rideRequests.map((request, index) => (
-                            <div
-                              key={index}
-                              className={`request-item ${
-                                request.status || "pending"
-                              }`}
-                            >
-                              <div className="request-header">
-                                <h4>
-                                  {request.clientName ||
-                                    `Client #${request.clientId}`}
-                                </h4>
-                                <span
-                                  className={`status ${
-                                    request.status || "pending"
+
+                      {/* Add tabs for requests and passengers */}
+                      <div className="request-tabs">
+                        <button
+                          className={`tab-button ${
+                            activeTab === "requests" ? "active" : ""
+                          }`}
+                          onClick={() => setActiveTab("requests")}
+                        >
+                          Ride Requests
+                        </button>
+                        <button
+                          className={`tab-button ${
+                            activeTab === "passengers" ? "active" : ""
+                          }`}
+                          onClick={() => setActiveTab("passengers")}
+                        >
+                          Passengers & Payments
+                        </button>
+                      </div>
+
+                      {/* Requests tab content */}
+                      {activeTab === "requests" && (
+                        <div className="requests-container">
+                          {isLoading ? (
+                            <div className="loading-spinner"></div>
+                          ) : selectedRide && rideRequests.length > 0 ? (
+                            rideRequests.map((request, index) => (
+                              <div
+                                key={index}
+                                className={`request-item ${
+                                  request.status || "pending"
+                                }`}
+                              >
+                                <div className="request-header">
+                                  <h4>
+                                    {request.clientName ||
+                                      `Client #${request.clientId}`}
+                                  </h4>
+                                  <span
+                                    className={`status ${
+                                      request.status || "pending"
+                                    }`}
+                                  >
+                                    {request.status || "pending"}
+                                  </span>
+                                </div>
+
+                                <div className="ride-details">
+                                  <div className="detail-item">
+                                    <span className="detail-label">
+                                      Client ID
+                                    </span>
+                                    <span className="detail-value">
+                                      {request.clientId}
+                                    </span>
+                                  </div>
+                                  <div className="detail-item">
+                                    <span className="detail-label">
+                                      Account
+                                    </span>
+                                    <span className="detail-value">
+                                      {request.clientMetaAccount
+                                        ? `${request.clientMetaAccount.substring(
+                                            0,
+                                            8
+                                          )}...`
+                                        : "Unknown"}
+                                    </span>
+                                  </div>
+                                  <div className="detail-item">
+                                    <span className="detail-label">
+                                      Requested
+                                    </span>
+                                    <span className="detail-value">
+                                      {request.requestedAt
+                                        ? new Date(
+                                            request.requestedAt
+                                          ).toLocaleString()
+                                        : "Unknown time"}
+                                    </span>
+                                  </div>
+                                </div>
+
+                                <div className="request-actions">
+                                  {(!request.status ||
+                                    request.status === "pending") && (
+                                    <>
+                                      <button
+                                        className="confirm-button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          confirmRideRequest(
+                                            selectedRide.rideId,
+                                            request.requestId
+                                          );
+                                        }}
+                                      >
+                                        Accept
+                                      </button>
+                                      <button
+                                        className="reject-button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          rejectRideRequest(
+                                            selectedRide.rideId,
+                                            request.requestId
+                                          );
+                                        }}
+                                      >
+                                        Reject
+                                      </button>
+                                    </>
+                                  )}
+
+                                  {request.status === "accepted" && (
+                                    <p className="request-accepted-message">
+                                      Ride request accepted
+                                    </p>
+                                  )}
+
+                                  {request.status === "rejected" && (
+                                    <p className="request-rejected-message">
+                                      This request has been rejected
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                            ))
+                          ) : (
+                            <div className="no-requests-message">
+                              {selectedRide
+                                ? "No requests for this ride yet."
+                                : "Select a ride to view requests."}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Passengers & Payment Status tab content */}
+                      {activeTab === "passengers" && (
+                        <div className="passengers-container">
+                          {passengerLoading ? (
+                            <div className="loading-spinner"></div>
+                          ) : selectedRide && ridePassengers.length > 0 ? (
+                            <>
+                              <h4 className="passenger-list-header">
+                                {selectedRide.status === "completed"
+                                  ? "Payment Status"
+                                  : "Passengers List"}
+                              </h4>
+                              {ridePassengers.map((passenger, index) => (
+                                <div
+                                  key={index}
+                                  className={`passenger-item ${
+                                    passenger.paid ? "paid" : "unpaid"
                                   }`}
                                 >
-                                  {request.status || "pending"}
-                                </span>
-                              </div>
+                                  <div className="passenger-header">
+                                    <h4>
+                                      {passenger.clientName ||
+                                        `Client #${passenger.clientId}`}
+                                    </h4>
+                                    {selectedRide.status === "completed" && (
+                                      <span
+                                        className={`payment-status ${
+                                          passenger.paid ? "paid" : "unpaid"
+                                        }`}
+                                      >
+                                        {passenger.paid
+                                          ? "Paid"
+                                          : "Payment Pending"}
+                                      </span>
+                                    )}
+                                  </div>
 
-                              <div className="ride-details">
-                                <div className="detail-item">
-                                  <span className="detail-label">
-                                    Client ID
-                                  </span>
-                                  <span className="detail-value">
-                                    {request.clientId}
-                                  </span>
+                                  <div className="passenger-details">
+                                    <div className="detail-item">
+                                      <span className="detail-label">
+                                        Client ID
+                                      </span>
+                                      <span className="detail-value">
+                                        {passenger.clientId}
+                                      </span>
+                                    </div>
+                                    <div className="detail-item">
+                                      <span className="detail-label">
+                                        Status
+                                      </span>
+                                      <span className="detail-value">
+                                        {passenger.status}
+                                      </span>
+                                    </div>
+                                    {passenger.paid &&
+                                      passenger.paymentTimestamp && (
+                                        <div className="detail-item">
+                                          <span className="detail-label">
+                                            Payment Date
+                                          </span>
+                                          <span className="detail-value">
+                                            {new Date(
+                                              parseInt(
+                                                passenger.paymentTimestamp
+                                              ) * 1000
+                                            ).toLocaleString()}
+                                          </span>
+                                        </div>
+                                      )}
+                                  </div>
                                 </div>
-                                <div className="detail-item">
-                                  <span className="detail-label">Account</span>
-                                  <span className="detail-value">
-                                    {request.clientMetaAccount
-                                      ? `${request.clientMetaAccount.substring(
-                                          0,
-                                          8
-                                        )}...`
-                                      : "Unknown"}
-                                  </span>
-                                </div>
-                                <div className="detail-item">
-                                  <span className="detail-label">
-                                    Requested
-                                  </span>
-                                  <span className="detail-value">
-                                    {request.requestedAt
-                                      ? new Date(
-                                          request.requestedAt
-                                        ).toLocaleString()
-                                      : "Unknown time"}
-                                  </span>
-                                </div>
-                              </div>
-
-                              <div className="request-actions">
-                                {(!request.status ||
-                                  request.status === "pending") && (
-                                  <>
-                                    <button
-                                      className="confirm-button"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        confirmRideRequest(
-                                          selectedRide.rideId,
-                                          request.requestId
-                                        );
-                                      }}
-                                    >
-                                      Accept
-                                    </button>
-                                    <button
-                                      className="reject-button"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        rejectRideRequest(
-                                          selectedRide.rideId,
-                                          request.requestId
-                                        );
-                                      }}
-                                    >
-                                      Reject
-                                    </button>
-                                  </>
-                                )}
-
-                                {request.status === "accepted" && (
-                                  <p className="request-accepted-message">
-                                    Ride request accepted
-                                  </p>
-                                )}
-
-                                {request.status === "rejected" && (
-                                  <p className="request-rejected-message">
-                                    This request has been rejected
-                                  </p>
-                                )}
-                              </div>
+                              ))}
+                            </>
+                          ) : (
+                            <div className="no-passengers-message">
+                              {selectedRide
+                                ? "No passengers for this ride yet."
+                                : "Select a ride to view passengers."}
                             </div>
-                          ))
-                        ) : (
-                          <div className="no-requests-message">
-                            {selectedRide
-                              ? "No requests for this ride yet."
-                              : "Select a ride to view requests."}
-                          </div>
-                        )}
-                      </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>

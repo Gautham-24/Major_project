@@ -64,6 +64,7 @@ contract ChainRideContract {
         address clientWalletAddress;
         string status; // "confirmed", "completed"
         bool paid;
+        uint256 paymentTimestamp; // New field to track when payment was made
     }
     
     // New struct to return ride details (fixing stack too deep)
@@ -342,6 +343,7 @@ contract ChainRideContract {
         newPassenger.clientWalletAddress = request.clientWalletAddress;
         newPassenger.status = "confirmed";
         newPassenger.paid = false;
+        newPassenger.paymentTimestamp = 0;
         
         ride.passengerIds.push(newPassengerId);
         ride.availableSeats--;
@@ -418,9 +420,10 @@ contract ChainRideContract {
         // Ensure the correct payment amount is sent (price per passenger)
         require(msg.value == ride.price, "Incorrect payment amount");
         
-        // Mark the passenger as having confirmed payment
+        // Mark the passenger as having confirmed payment and set payment timestamp
         passengers[passengerIdFound].paid = true;
         passengers[passengerIdFound].status = "confirmed";
+        passengers[passengerIdFound].paymentTimestamp = block.timestamp;
         
         // Update driver's total earnings
         drivers[ride.driverId].totalEarnings += msg.value;

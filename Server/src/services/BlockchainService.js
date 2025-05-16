@@ -1067,10 +1067,6 @@ class BlockchainService {
         throw new Error("Blockchain service not initialized");
       }
 
-      // console.log(
-      //   `Checking payment status for ride ${rideId} and client ${clientId}`
-      // );
-
       // Get ride details
       const ride = await this.getRide(rideId);
 
@@ -1128,11 +1124,13 @@ class BlockchainService {
       const isPaid =
         passengerInfo.paid === true || passengerInfo.paid === "true";
       const paymentStatus = isPaid ? "paid" : "payment_pending";
+      const paymentTimestamp = isPaid ? passengerInfo.paymentTimestamp : null;
 
-      // console.log(
-      //   `Payment status for client ${clientId} on ride ${rideId}: ${paymentStatus}`
-      // );
-      return { paid: isPaid, status: paymentStatus };
+      return {
+        paid: isPaid,
+        status: paymentStatus,
+        paymentTimestamp: paymentTimestamp,
+      };
     } catch (error) {
       console.error(
         `Error checking payment status for ride ${rideId} and client ${clientId}:`,
@@ -1708,6 +1706,47 @@ class BlockchainService {
     } catch (error) {
       console.error("Error getting driver statistics:", error);
       return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Get passenger details by ID
+   * @param {string} passengerId - The passenger ID
+   * @returns {Promise<Object|null>} - Passenger details or null if not found
+   */
+  async getPassenger(passengerId) {
+    try {
+      if (!this.isInitialized) {
+        throw new Error("Blockchain service not initialized");
+      }
+
+      console.log(`Getting passenger with ID ${passengerId}`);
+
+      // Get passenger from blockchain
+      const passenger = await this.contract.methods
+        .passengers(passengerId)
+        .call();
+
+      if (
+        !passenger ||
+        passenger.clientWalletAddress ===
+          "0x0000000000000000000000000000000000000000"
+      ) {
+        console.log(`Passenger with ID ${passengerId} not found`);
+        return null;
+      }
+
+      return {
+        id: passengerId,
+        clientId: passenger.clientId,
+        clientWalletAddress: passenger.clientWalletAddress,
+        status: passenger.status,
+        paid: passenger.paid,
+        paymentTimestamp: passenger.paymentTimestamp || null,
+      };
+    } catch (error) {
+      console.error(`Error getting passenger with ID ${passengerId}:`, error);
+      return null;
     }
   }
 }
